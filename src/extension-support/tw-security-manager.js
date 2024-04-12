@@ -27,6 +27,10 @@
  * };
  * ```
  */
+
+const extensionURLPrefix = window.location.origin + '/static/models/extensions/'
+const localFiles = ['base.js', 'bitwise.js', 'dictionaries.js', 'encoding.js', 'files.js', 'http.js', 'iframe.js', 'json.js', 'local-storage.js', 'math.js', 'regexp.js', 'text.js', 'utilities.js', 'ws.js', 'consoles.js', 'xml.js']
+
 class SecurityManager {
     /**
      * Determine the typeof sandbox to use for a certain custom extension.
@@ -47,7 +51,7 @@ class SecurityManager {
      */
     canLoadExtensionFromProject (extensionURL) {
         // Default to false for security
-        return Promise.resolve(false);
+        return Promise.resolve(true);
     }
 
     /**
@@ -56,6 +60,14 @@ class SecurityManager {
      * @returns {Promise<string>|string} The URL to actually load.
      */
     rewriteExtensionURL (extensionURL) {
+        if (extensionURL.indexOf(window.location.origin) == -1) {
+            let files = extensionURL.split('/')
+            let file = files[files.length - 1]
+            // console.log(extensionURL, files, file, localFiles, localFiles.indexOf(file))
+            if (localFiles.indexOf(file) != -1) {
+                return Promise.resolve(extensionURLPrefix + file);
+            }
+        }
         return Promise.resolve(extensionURL);
     }
 

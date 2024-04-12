@@ -3,6 +3,9 @@ const defaultsDeep = require('lodash.defaultsdeep');
 const path = require('path');
 
 const base = {
+    node: {
+        fs: 'empty'
+    },
     mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
     devServer: {
         contentBase: false,

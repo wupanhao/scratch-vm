@@ -1,0 +1,1344 @@
+[
+    {
+        "definition": null,
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "10": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "11": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "ssIasAce",
+                        "genTime"
+                    ],
+                    "output": [
+                        "ssIasZone",
+                        "ssIasWd"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "110": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "12": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "13": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genOta"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "2": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "242": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "3": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "4": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "47": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "5": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "6": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "8": {
+                "bindings": [],
+                "clusters": {
+                    "input": [],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "Coordinator",
+        "ieee_address": "0x00124b0024c2c9f1",
+        "interview_completed": true,
+        "interviewing": false,
+        "network_address": 0,
+        "supported": true,
+        "type": "Coordinator"
+    },
+    {
+        "date_code": "03-02-2017",
+        "definition": {
+            "description": "Aqara socket Zigbee",
+            "exposes": [
+                {
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "access": 5,
+                    "description": "Instantaneous measured power",
+                    "label": "Power",
+                    "name": "power",
+                    "property": "power",
+                    "type": "numeric",
+                    "unit": "W"
+                },
+                {
+                    "access": 1,
+                    "description": "Sum of consumed energy",
+                    "label": "Energy",
+                    "name": "energy",
+                    "property": "energy",
+                    "type": "numeric",
+                    "unit": "kWh"
+                },
+                {
+                    "access": 1,
+                    "description": "Temperature of the device",
+                    "label": "Device temperature",
+                    "name": "device_temperature",
+                    "property": "device_temperature",
+                    "type": "numeric",
+                    "unit": "°C"
+                },
+                {
+                    "access": 1,
+                    "description": "Measured electrical potential value",
+                    "label": "Voltage",
+                    "name": "voltage",
+                    "property": "voltage",
+                    "type": "numeric",
+                    "unit": "V"
+                },
+                {
+                    "access": 7,
+                    "description": "Enable/disable the power outage memory, this recovers the on/off mode after power failure",
+                    "label": "Power outage memory",
+                    "name": "power_outage_memory",
+                    "property": "power_outage_memory",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "QBCZ11LM",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "Calibrates the power value (percentual offset), takes into effect on next report of device.",
+                    "label": "Power calibration",
+                    "name": "power_calibration",
+                    "property": "power_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Number of digits after decimal point for power, takes into effect on next report of device. This option can only decrease the precision, not increase it.",
+                    "label": "Power precision",
+                    "name": "power_precision",
+                    "property": "power_precision",
+                    "type": "numeric",
+                    "value_max": 3,
+                    "value_min": 0
+                },
+                {
+                    "access": 2,
+                    "description": "Calibrates the energy value (percentual offset), takes into effect on next report of device.",
+                    "label": "Energy calibration",
+                    "name": "energy_calibration",
+                    "property": "energy_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Number of digits after decimal point for energy, takes into effect on next report of device. This option can only decrease the precision, not increase it.",
+                    "label": "Energy precision",
+                    "name": "energy_precision",
+                    "property": "energy_precision",
+                    "type": "numeric",
+                    "value_max": 3,
+                    "value_min": 0
+                },
+                {
+                    "access": 2,
+                    "description": "Calibrates the device_temperature value (absolute offset), takes into effect on next report of device.",
+                    "label": "Device temperature calibration",
+                    "name": "device_temperature_calibration",
+                    "property": "device_temperature_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Calibrates the voltage value (percentual offset), takes into effect on next report of device.",
+                    "label": "Voltage calibration",
+                    "name": "voltage_calibration",
+                    "property": "voltage_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Number of digits after decimal point for voltage, takes into effect on next report of device. This option can only decrease the precision, not increase it.",
+                    "label": "Voltage precision",
+                    "name": "voltage_precision",
+                    "property": "voltage_precision",
+                    "type": "numeric",
+                    "value_max": 3,
+                    "value_min": 0
+                },
+                {
+                    "access": 2,
+                    "description": "State actions will also be published as 'action' when true (default false).",
+                    "label": "State action",
+                    "name": "state_action",
+                    "property": "state_action",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": true,
+            "vendor": "Xiaomi"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genGroups",
+                        "genIdentify",
+                        "genOnOff",
+                        "genBinaryOutput",
+                        "genScenes",
+                        "genTime",
+                        "genPowerCfg",
+                        "genDeviceTempCfg",
+                        "msIlluminanceMeasurement",
+                        "msTemperatureMeasurement",
+                        "msRelativeHumidity",
+                        "msOccupancySensing"
+                    ],
+                    "output": [
+                        "genOta",
+                        "genTime"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "100": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBinaryInput"
+                    ],
+                    "output": [
+                        "genBinaryInput",
+                        "genGroups"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "2": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genAnalogInput"
+                    ],
+                    "output": [
+                        "genAnalogInput",
+                        "genGroups"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "3": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genAnalogInput"
+                    ],
+                    "output": [
+                        "genAnalogInput"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "0x00158d0001830a47",
+        "ieee_address": "0x00158d0001830a47",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "LUMI",
+        "model_id": "lumi.ctrl_86plug",
+        "network_address": 3342,
+        "power_source": "Mains (single phase)",
+        "supported": true,
+        "type": "Router"
+    },
+    {
+        "date_code": "04-25-2018",
+        "definition": {
+            "description": "Aqara double key wired wall switch without neutral wire. Doesn't work as a router and doesn't support power meter",
+            "exposes": [
+                {
+                    "endpoint": "left",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "left",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_left",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "endpoint": "right",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "right",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_right",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "access": 1,
+                    "description": "Temperature of the device",
+                    "label": "Device temperature",
+                    "name": "device_temperature",
+                    "property": "device_temperature",
+                    "type": "numeric",
+                    "unit": "°C"
+                },
+                {
+                    "access": 1,
+                    "description": "Triggered action (e.g. a button click)",
+                    "label": "Action",
+                    "name": "action",
+                    "property": "action",
+                    "type": "enum",
+                    "values": [
+                        "release_left",
+                        "release_right",
+                        "release_both",
+                        "double_left",
+                        "double_right",
+                        "single_left",
+                        "single_right",
+                        "hold_release_left",
+                        "hold_release_left"
+                    ]
+                },
+                {
+                    "access": 3,
+                    "description": "Operation mode for left button",
+                    "endpoint": "left",
+                    "label": "Operation mode",
+                    "name": "operation_mode",
+                    "property": "operation_mode_left",
+                    "type": "enum",
+                    "values": [
+                        "control_left_relay",
+                        "control_right_relay",
+                        "decoupled"
+                    ]
+                },
+                {
+                    "access": 3,
+                    "description": "Operation mode for right button",
+                    "endpoint": "right",
+                    "label": "Operation mode",
+                    "name": "operation_mode",
+                    "property": "operation_mode_right",
+                    "type": "enum",
+                    "values": [
+                        "control_left_relay",
+                        "control_right_relay",
+                        "decoupled"
+                    ]
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "QBKG03LM",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "Calibrates the device_temperature value (absolute offset), takes into effect on next report of device.",
+                    "label": "Device temperature calibration",
+                    "name": "device_temperature_calibration",
+                    "property": "device_temperature_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Set to false to disable the legacy integration (highly recommended), will change structure of the published payload (default true).",
+                    "label": "Legacy",
+                    "name": "legacy",
+                    "property": "legacy",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": true,
+            "vendor": "Xiaomi"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genIdentify",
+                        "genPowerCfg",
+                        "genDeviceTempCfg",
+                        "genOta",
+                        "genTime"
+                    ],
+                    "output": [
+                        "genBasic",
+                        "genTime",
+                        "genOta"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "2": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBinaryOutput",
+                        "genOnOff",
+                        "genGroups",
+                        "genScenes"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "3": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBinaryOutput",
+                        "genOnOff",
+                        "genGroups",
+                        "genScenes"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "4": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "5": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "6": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "8": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genAnalogInput"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "0x00158d0003170055",
+        "ieee_address": "0x00158d0003170055",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "LUMI",
+        "model_id": "lumi.ctrl_neutral2",
+        "network_address": 45966,
+        "power_source": "DC Source",
+        "supported": true,
+        "type": "EndDevice"
+    },
+    {
+        "date_code": "04-25-2018",
+        "definition": {
+            "description": "Aqara double key wired wall switch without neutral wire. Doesn't work as a router and doesn't support power meter",
+            "exposes": [
+                {
+                    "endpoint": "left",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "left",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_left",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "endpoint": "right",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "right",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_right",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "access": 1,
+                    "description": "Temperature of the device",
+                    "label": "Device temperature",
+                    "name": "device_temperature",
+                    "property": "device_temperature",
+                    "type": "numeric",
+                    "unit": "°C"
+                },
+                {
+                    "access": 1,
+                    "description": "Triggered action (e.g. a button click)",
+                    "label": "Action",
+                    "name": "action",
+                    "property": "action",
+                    "type": "enum",
+                    "values": [
+                        "release_left",
+                        "release_right",
+                        "release_both",
+                        "double_left",
+                        "double_right",
+                        "single_left",
+                        "single_right",
+                        "hold_release_left",
+                        "hold_release_left"
+                    ]
+                },
+                {
+                    "access": 3,
+                    "description": "Operation mode for left button",
+                    "endpoint": "left",
+                    "label": "Operation mode",
+                    "name": "operation_mode",
+                    "property": "operation_mode_left",
+                    "type": "enum",
+                    "values": [
+                        "control_left_relay",
+                        "control_right_relay",
+                        "decoupled"
+                    ]
+                },
+                {
+                    "access": 3,
+                    "description": "Operation mode for right button",
+                    "endpoint": "right",
+                    "label": "Operation mode",
+                    "name": "operation_mode",
+                    "property": "operation_mode_right",
+                    "type": "enum",
+                    "values": [
+                        "control_left_relay",
+                        "control_right_relay",
+                        "decoupled"
+                    ]
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "QBKG03LM",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "Calibrates the device_temperature value (absolute offset), takes into effect on next report of device.",
+                    "label": "Device temperature calibration",
+                    "name": "device_temperature_calibration",
+                    "property": "device_temperature_calibration",
+                    "type": "numeric"
+                },
+                {
+                    "access": 2,
+                    "description": "Set to false to disable the legacy integration (highly recommended), will change structure of the published payload (default true).",
+                    "label": "Legacy",
+                    "name": "legacy",
+                    "property": "legacy",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": true,
+            "vendor": "Xiaomi"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genIdentify",
+                        "genPowerCfg",
+                        "genDeviceTempCfg",
+                        "genOta",
+                        "genTime"
+                    ],
+                    "output": [
+                        "genBasic",
+                        "genTime",
+                        "genOta"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "2": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBinaryOutput",
+                        "genOnOff",
+                        "genGroups",
+                        "genScenes"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "3": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBinaryOutput",
+                        "genOnOff",
+                        "genGroups",
+                        "genScenes"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "4": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "5": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "6": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genMultistateInput",
+                        "genOnOff"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "8": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genAnalogInput"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "0x00158d00026b5c6f",
+        "ieee_address": "0x00158d00026b5c6f",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "LUMI",
+        "model_id": "lumi.ctrl_neutral2",
+        "network_address": 54676,
+        "power_source": "DC Source",
+        "supported": true,
+        "type": "EndDevice"
+    },
+    {
+        "date_code": "20210625",
+        "definition": {
+            "description": "3 gang switch module",
+            "exposes": [
+                {
+                    "endpoint": "l1",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "l1",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_l1",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "endpoint": "l2",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "l2",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_l2",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "endpoint": "l3",
+                    "features": [
+                        {
+                            "access": 7,
+                            "description": "On/off state of the switch",
+                            "endpoint": "l3",
+                            "label": "State",
+                            "name": "state",
+                            "property": "state_l3",
+                            "type": "binary",
+                            "value_off": "OFF",
+                            "value_on": "ON",
+                            "value_toggle": "TOGGLE"
+                        }
+                    ],
+                    "type": "switch"
+                },
+                {
+                    "access": 7,
+                    "description": "Controls the behavior when the device is powered on after power loss. If you get an `UNSUPPORTED_ATTRIBUTE` error, the device does not support it.",
+                    "label": "Power-on behavior",
+                    "name": "power_on_behavior",
+                    "property": "power_on_behavior",
+                    "type": "enum",
+                    "values": [
+                        "off",
+                        "previous",
+                        "on"
+                    ]
+                },
+                {
+                    "access": 7,
+                    "description": "Type of the switch",
+                    "label": "Switch type",
+                    "name": "switch_type",
+                    "property": "switch_type",
+                    "type": "enum",
+                    "values": [
+                        "toggle",
+                        "state",
+                        "momentary"
+                    ]
+                },
+                {
+                    "access": 7,
+                    "description": "LED indicator mode",
+                    "label": "Indicator mode",
+                    "name": "indicator_mode",
+                    "property": "indicator_mode",
+                    "type": "enum",
+                    "values": [
+                        "off",
+                        "off/on",
+                        "on/off",
+                        "on"
+                    ]
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "TS0003_switch_module_2",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "State actions will also be published as 'action' when true (default false).",
+                    "label": "State action",
+                    "name": "state_action",
+                    "property": "state_action",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": false,
+            "vendor": "TuYa"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [
+                    {
+                        "cluster": "genOnOff",
+                        "target": {
+                            "endpoint": 1,
+                            "ieee_address": "0x00124b0024c2c9f1",
+                            "type": "endpoint"
+                        }
+                    }
+                ],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genOnOff",
+                        "genIdentify",
+                        "genGroups",
+                        "genScenes",
+                        "manuSpecificTuya_3"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "2": {
+                "bindings": [
+                    {
+                        "cluster": "genOnOff",
+                        "target": {
+                            "endpoint": 1,
+                            "ieee_address": "0x00124b0024c2c9f1",
+                            "type": "endpoint"
+                        }
+                    }
+                ],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genOnOff",
+                        "genIdentify",
+                        "genGroups",
+                        "genScenes",
+                        "manuSpecificTuya_3"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            },
+            "3": {
+                "bindings": [
+                    {
+                        "cluster": "genOnOff",
+                        "target": {
+                            "endpoint": 1,
+                            "ieee_address": "0x00124b0024c2c9f1",
+                            "type": "endpoint"
+                        }
+                    }
+                ],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genOnOff",
+                        "genIdentify",
+                        "genGroups",
+                        "genScenes",
+                        "manuSpecificTuya_3"
+                    ],
+                    "output": []
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "三键开关",
+        "ieee_address": "0x70b3d52b6002173e",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "_TZ3000_4o16jdca",
+        "model_id": "TS0003",
+        "network_address": 10202,
+        "power_source": "Mains (single phase)",
+        "software_build_id": "202+TZTDQ23CL102",
+        "supported": true,
+        "type": "Router"
+    },
+    {
+        "date_code": "08-13-2018",
+        "definition": {
+            "description": "Aqara curtain motor",
+            "exposes": [
+                {
+                    "features": [
+                        {
+                            "access": 7,
+                            "label": "State",
+                            "name": "state",
+                            "property": "state",
+                            "type": "enum",
+                            "values": [
+                                "OPEN",
+                                "CLOSE",
+                                "STOP"
+                            ]
+                        },
+                        {
+                            "access": 7,
+                            "description": "Position of this cover",
+                            "label": "Position",
+                            "name": "position",
+                            "property": "position",
+                            "type": "numeric",
+                            "unit": "%",
+                            "value_max": 100,
+                            "value_min": 0
+                        }
+                    ],
+                    "type": "cover"
+                },
+                {
+                    "access": 1,
+                    "description": "Whether the motor is moving or not",
+                    "label": "Running",
+                    "name": "running",
+                    "property": "running",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                },
+                {
+                    "access": 1,
+                    "description": "Motor state",
+                    "label": "Motor state",
+                    "name": "motor_state",
+                    "property": "motor_state",
+                    "type": "enum",
+                    "values": [
+                        "stopped",
+                        "opening",
+                        "closing"
+                    ]
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "ZNCLDJ11LM",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "Inverts the cover position, false: open=100,close=0, true: open=0,close=100 (default false).",
+                    "label": "Invert cover",
+                    "name": "invert_cover",
+                    "property": "invert_cover",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": true,
+            "vendor": "Xiaomi"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genGroups",
+                        "genIdentify",
+                        "genScenes",
+                        "genTime",
+                        "closuresWindowCovering",
+                        "genAnalogOutput",
+                        "genMultistateOutput",
+                        "genOnOff",
+                        "genPowerCfg",
+                        "msOccupancySensing"
+                    ],
+                    "output": [
+                        "genOta",
+                        "genTime",
+                        "genAnalogOutput",
+                        "closuresWindowCovering",
+                        "genMultistateOutput",
+                        "genOnOff",
+                        "genPowerCfg",
+                        "msOccupancySensing"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "0x00158d00020e3a3d",
+        "ieee_address": "0x00158d00020e3a3d",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "LUMI",
+        "model_id": "lumi.curtain",
+        "network_address": 59746,
+        "power_source": "Mains (single phase)",
+        "supported": true,
+        "type": "Router"
+    },
+    {
+        "date_code": "08-13-2018",
+        "definition": {
+            "description": "Aqara curtain motor",
+            "exposes": [
+                {
+                    "features": [
+                        {
+                            "access": 7,
+                            "label": "State",
+                            "name": "state",
+                            "property": "state",
+                            "type": "enum",
+                            "values": [
+                                "OPEN",
+                                "CLOSE",
+                                "STOP"
+                            ]
+                        },
+                        {
+                            "access": 7,
+                            "description": "Position of this cover",
+                            "label": "Position",
+                            "name": "position",
+                            "property": "position",
+                            "type": "numeric",
+                            "unit": "%",
+                            "value_max": 100,
+                            "value_min": 0
+                        }
+                    ],
+                    "type": "cover"
+                },
+                {
+                    "access": 1,
+                    "description": "Whether the motor is moving or not",
+                    "label": "Running",
+                    "name": "running",
+                    "property": "running",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                },
+                {
+                    "access": 1,
+                    "description": "Motor state",
+                    "label": "Motor state",
+                    "name": "motor_state",
+                    "property": "motor_state",
+                    "type": "enum",
+                    "values": [
+                        "stopped",
+                        "opening",
+                        "closing"
+                    ]
+                },
+                {
+                    "access": 1,
+                    "description": "Link quality (signal strength)",
+                    "label": "Linkquality",
+                    "name": "linkquality",
+                    "property": "linkquality",
+                    "type": "numeric",
+                    "unit": "lqi",
+                    "value_max": 255,
+                    "value_min": 0
+                }
+            ],
+            "model": "ZNCLDJ11LM",
+            "options": [
+                {
+                    "access": 2,
+                    "description": "Inverts the cover position, false: open=100,close=0, true: open=0,close=100 (default false).",
+                    "label": "Invert cover",
+                    "name": "invert_cover",
+                    "property": "invert_cover",
+                    "type": "binary",
+                    "value_off": false,
+                    "value_on": true
+                }
+            ],
+            "supports_ota": true,
+            "vendor": "Xiaomi"
+        },
+        "disabled": false,
+        "endpoints": {
+            "1": {
+                "bindings": [],
+                "clusters": {
+                    "input": [
+                        "genBasic",
+                        "genGroups",
+                        "genIdentify",
+                        "genScenes",
+                        "genTime",
+                        "closuresWindowCovering",
+                        "genAnalogOutput",
+                        "genMultistateOutput",
+                        "genOnOff",
+                        "genPowerCfg",
+                        "msOccupancySensing"
+                    ],
+                    "output": [
+                        "genOta",
+                        "genTime",
+                        "genAnalogOutput",
+                        "closuresWindowCovering",
+                        "genMultistateOutput",
+                        "genOnOff",
+                        "genPowerCfg",
+                        "msOccupancySensing"
+                    ]
+                },
+                "configured_reportings": [],
+                "scenes": []
+            }
+        },
+        "friendly_name": "0x00158d0002bf6503",
+        "ieee_address": "0x00158d0002bf6503",
+        "interview_completed": true,
+        "interviewing": false,
+        "manufacturer": "LUMI",
+        "model_id": "lumi.curtain",
+        "network_address": 52447,
+        "power_source": "Mains (single phase)",
+        "supported": true,
+        "type": "Router"
+    }
+]

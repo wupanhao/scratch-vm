@@ -28,6 +28,39 @@ require('canvas-toBlob');
 const {exportCostume} = require('./serialization/tw-costume-import-export');
 const Base64Util = require('./util/base64-util');
 
+
+// Lepi Added Start
+// require("babel-core/register");
+// require("babel-polyfill");
+
+const RosClient = require('./ros-client')
+
+// 对Date的扩展，将 Date 转化为指定格式的String
+// 月(M)、日(d)、小时(h)、分(m)、秒(s)、季度(q) 可以用 1-2 个占位符，
+// 年(y)可以用 1-4 个占位符，毫秒(S)只能用 1 个占位符(是 1-3 位的数字)
+// 例子：
+// (new Date()).Format("yyyy-MM-dd hh:mm:ss.S") ==> 2006-07-02 08:09:04.423
+// (new Date()).Format("yyyy-M-d h:m:s.S") ==> 2006-7-2 8:9:4.18
+
+Date.prototype.Format = function (fmt) { // author: meizz
+    var o = {
+        "M+": this.getMonth() + 1, // 月份
+        "d+": this.getDate(), // 日
+        "h+": this.getHours(), // 小时
+        "m+": this.getMinutes(), // 分
+        "s+": this.getSeconds(), // 秒
+        "q+": Math.floor((this.getMonth() + 3) / 3), // 季度
+        "S": this.getMilliseconds() // 毫秒
+    };
+    if (/(y+)/.test(fmt))
+        fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+    for (var k in o)
+        if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+    return fmt;
+}
+// Lepi Added End
+
+
 const RESERVED_NAMES = ['_mouse_', '_stage_', '_edge_', '_myself_', '_random_'];
 
 const CORE_EXTENSIONS = [
@@ -67,6 +100,27 @@ class VirtualMachine extends EventEmitter {
          * @type {!Runtime}
          */
         this.runtime = new Runtime();
+
+        // Lepi Added Start
+        this.downloadType = null
+        this.runtime.vm = this
+        this.LEPI_IP = 'localhost'
+        try {
+            console.log(navigator.platform)
+            if (navigator.platform == 'Linux armv7l') {
+                console.log('on raspberrypi')
+            } else {
+                console.log('on PC')
+                this.LEPI_IP = window.location.hostname
+            }
+            console.log(this.LEPI_IP)
+            this.connect(this.LEPI_IP)
+        } catch (e) {
+            console.log(e)
+        }
+
+        // Lepi Added End
+
         centralDispatch.setService('runtime', createRuntimeService(this.runtime)).catch(e => {
             log.error(`Failed to register runtime service: ${JSON.stringify(e)}`);
         });
@@ -1858,6 +1912,48 @@ class VirtualMachine extends EventEmitter {
     configureScratchLinkSocketFactory (factory) {
         this.runtime.configureScratchLinkSocketFactory(factory);
     }
+
+    // Lepi Added Start
+
+    connect(ip, onSuccess, onFailure) {
+        console.log(ip)
+        this.LEPI_IP = ip
+
+        if (this.ros && this.ros.isConnected()) {
+            this.ros.close()
+        }
+
+        this.ros = new RosClient(this.LEPI_IP)
+        this.ros.conectToRos(() => {
+            console.log('connected to ros server')
+            console.log(this.ros)
+            this.runtime.ros = this.ros
+            this.runtime.emit('LEPI_CONNECTED')
+            if (onSuccess) {
+                onSuccess()
+            }
+        })
+
+        this.ros.ros.on('error', (error) => {
+            if (onFailure) {
+                onFailure()
+            }
+            console.log('Error connecting to websocket server: ', error);
+        });
+
+        this.ros.ros.on('VM: close', () => {
+            console.log('Connection to websocket server closed.');
+        });
+
+    }
+
+    publishMsg(msg) {
+        this.ros.publishMsg(msg)
+    }
+
+    // Lepi Added End
+
+
 }
 
 module.exports = VirtualMachine;

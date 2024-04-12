@@ -35,6 +35,10 @@ class ScratchLinkWebSocket {
         case 'BT':
             pathname = 'scratch/bt';
             break;
+        case 'WS':
+            pathname = 'scratch/ws';
+            // this._ws = new ('ws://localhost:20110/scratch/ws');
+            break;
         default:
             throw new Error(`Unknown ScratchLink socket Type: ${this._type}`);
         }
@@ -55,8 +59,13 @@ class ScratchLinkWebSocket {
             this._ws.onmessage = this._onMessage.bind(this);
         };
 
-        const ws = new WebSocket(`ws://127.0.0.1:20111/${pathname}`);
-        const wss = new WebSocket(`wss://device-manager.scratch.mit.edu:20110/${pathname}`);
+        if (pathname != 'scratch/ws'){
+            return
+        }
+
+        const ws = new WebSocket(`ws://127.0.0.1:20110/${pathname}`);
+        const wss = new WebSocket(`ws://127.0.0.1:20111/${pathname}`);
+        // const wss = new WebSocket(`wss://device-manager.scratch.mit.edu:20110/${pathname}`);
 
         const connectTimeout = setTimeout(() => {
             // neither socket succeeded before the timeout

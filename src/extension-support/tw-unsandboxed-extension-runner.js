@@ -49,6 +49,7 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
         if (parsed.protocol === 'blob:' || parsed.protocol === 'data:') {
             return true;
         }
+        return true
         return vm.securityManager.canFetch(parsed.href);
     };
 
@@ -89,6 +90,7 @@ const setupUnsandboxedExtensionAPI = vm => new Promise(resolve => {
     Scratch.canGeolocate = async () => vm.securityManager.canGeolocate();
 
     Scratch.canEmbed = async url => {
+        return true
         const parsed = parseURL(url);
         if (!parsed) {
             return false;

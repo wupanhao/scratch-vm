@@ -26,7 +26,53 @@ const defaultBuiltinExtensions = {
     boost: () => require('../extensions/scratch3_boost'),
     gdxfor: () => require('../extensions/scratch3_gdx_for'),
     // tw: core extension
-    tw: () => require('../extensions/tw')
+    tw: () => require('../extensions/tw'),
+    // lepi extensions
+    lepi: () => require('../extensions/scratch3_lepi'),
+    lepiActuator: () => require('../extensions/lepi_actuator'),
+    lepiApriltagDetect: () => require('../extensions/lepi_apriltag_detect'),
+    lepiAudio: () => require('../extensions/lepi_audio'),
+    lepiCamera: () => require('../extensions/lepi_camera'),
+    lepiLearningMachinePose: () => require('../extensions/lepi_learning_machine_pose'),
+    lepiLearningMachineImage: () => require('../extensions/lepi_learning_machine_image'),
+    lepiLearningMachineAudio: () => require('../extensions/lepi_learning_machine_audio'),
+    lepiColorDetect: () => require('../extensions/lepi_color_detect'),
+    lepiFaceRecognize: () => require('../extensions/lepi_face_recognize'),
+    lepiHttp: () => require('../extensions/lepi_http'),
+    lepiJoystick: () => require('../extensions/lepi_joystick'),
+    lepiSensor: () => require('../extensions/lepi_sensor'),
+    lepiTransferLearning: () => require('../extensions/lepi_transfer_learning'),
+    lepiVariable: () => require('../extensions/lepi_variable'),
+    lepiCollaborationSheet:() => require('../extensions/lepi_collaboration_sheet'),
+    // lepiSerial: () => require('../extensions/lepi_serial'),
+    lepiObjectDetection: () => require('../extensions/lepi_object_detection'),
+    lepiImageClassify: () => require('../extensions/lepi_image_classify'),
+    // lepiFaceMesh: () => require('../extensions/lepi_face_mesh'),
+    lepiHandDetect: () => require('../extensions/lepi_hand_detect'),
+    lepiPoseEstimate: () => require('../extensions/lepi_pose_estimate'),
+    lepiMoveNetPose: () => require('../extensions/lepi_movenet_pose'),
+    lepiUltraFace: () => require('../extensions/lepi_ultra_face_inference'),
+    lepiTextRecognize: () => require('../extensions/lepi_text_recognize'),
+    lepiBarcodeScan: () => require('../extensions/lepi_barcode_scan'),
+    lepiWebPlottor: () => require('../extensions/lepi_web_plottor'),
+    lepiImageProcess: () => require('../extensions/lepi_image_process'),
+    lepiSmartAudio: () => require('../extensions/lepi_smart_audio'),
+    lepiRFID: () => require('../extensions/lepi_rfid'),
+    lepiPupper: () => require('../extensions/lepi_pupper'),
+    lepiHexapod: () => require('../extensions/lepi_hexapod'),
+    lepiBalanceCar: () => require('../extensions/lepi_balance_car'),
+    lepiComm: () => require('../extensions/lepi_communication'),
+    lepiMQTT: () => require('../extensions/lepi_mqtt'),
+    lepiScienceSensor: () => require('../extensions/lepi_science_sensor'),
+    homeassistant: () => require('../extensions/scratch3_homeassistant'),
+    onegpioArduino: () => require('../extensions/scratch3_onegpioArduino'),
+    onegpioRpi: () => require('../extensions/scratch3_onegpioRpi'),
+    onegpioEsp: () => require('../extensions/scratch3_onegpioEsp'),
+    onegpioPicoboard: () => require('../extensions/scratch3_onegpioPicoboard'),
+    onegpioCpx: () => require('../extensions/scratch3_onegpioCpx'),
+    onegpioRoboHAT: () => require('../extensions/scratch3_onegpioRoboHAT'),
+    onegpioRpiPico: () => require('../extensions/scratch3_onegpioRpiPico'),
+    lepiSmartClassroom:() => require('../extensions/lepi_smart_classroom'),
 };
 
 /**
@@ -220,9 +266,10 @@ class ExtensionManager {
 
         this.loadingAsyncExtensions++;
 
-        const sandboxMode = await this.securityManager.getSandboxMode(extensionURL);
+        // const sandboxMode = await this.securityManager.getSandboxMode(extensionURL);
+        const sandboxMode = 'unsandboxed'
         const rewritten = await this.securityManager.rewriteExtensionURL(extensionURL);
-
+        console.log(rewritten, sandboxMode)
         if (sandboxMode === 'unsandboxed') {
             const {load} = require('./tw-unsandboxed-extension-runner');
             const extensionObjects = await load(rewritten, this.vm)
