@@ -3,22 +3,21 @@
 
 // Sprite1 script
 (function factoryXYZ(thread) { const target = thread.target; const runtime = target.runtime; const stage = runtime.getTargetForStage();
-const b0 = runtime.getOpcodeFunction("looks_say");
 return function* genXYZ () {
-yield* executeInCompatibilityLayer({"MESSAGE":"plan 0",}, b0, false, false, "d", null);
+runtime.ext_scratch3_looks._say("plan 0", target);
 thread.procedures["Zfoo %s"]("");
-yield* executeInCompatibilityLayer({"MESSAGE":"end",}, b0, false, false, "g", null);
+runtime.ext_scratch3_looks._say("end", target);
 retire(); return;
 }; })
 
-// Sprite1 foo %s
+// Sprite1 Zfoo %s
 (function factoryXYZ(thread) { const target = thread.target; const runtime = target.runtime; const stage = runtime.getTargetForStage();
 return function funXYZ_foo_ (p0) {
 return "";
 return "";
 }; })
 
-// Sprite1 no op
+// Sprite1 Zno op
 (function factoryXYZ(thread) { const target = thread.target; const runtime = target.runtime; const stage = runtime.getTargetForStage();
 return function funXYZ_no_op () {
 return "";

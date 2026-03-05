@@ -324,19 +324,25 @@ class ExtensionManager {
 
     /**
      * Regenerate blockinfo for any loaded extensions
+     * @param {string} [optExtensionId] Optional extension ID for refreshing
      * @returns {Promise} resolved once all the extensions have been reinitialized
      */
-    refreshBlocks () {
-        const allPromises = Array.from(this._loadedExtensions.values()).map(serviceName =>
-            dispatch.call(serviceName, 'getInfo')
-                .then(info => {
-                    info = this._prepareExtensionInfo(serviceName, info);
-                    dispatch.call('runtime', '_refreshExtensionPrimitives', info);
-                })
-                .catch(e => {
-                    log.error('Failed to refresh built-in extension primitives', e);
-                })
-        );
+    refreshBlocks (optExtensionId) {
+        const refresh = serviceName => dispatch.call(serviceName, 'getInfo')
+            .then(info => {
+                info = this._prepareExtensionInfo(serviceName, info);
+                dispatch.call('runtime', '_refreshExtensionPrimitives', info);
+            })
+            .catch(e => {
+                log.error('Failed to refresh built-in extension primitives', e);
+            });
+        if (optExtensionId) {
+            if (!this._loadedExtensions.has(optExtensionId)) {
+                return Promise.reject(new Error(`Unknown extension: ${optExtensionId}`));
+            }
+            return refresh(this._loadedExtensions.get(optExtensionId));
+        }
+        const allPromises = Array.from(this._loadedExtensions.values()).map(refresh);
         return Promise.all(allPromises);
     }
 
@@ -606,15 +612,6 @@ class ExtensionManager {
                                     return result;
                                 }
                                 return `${result}`;
-                            })
-                            // When an error happens, instead of returning undefined, we'll return a stringified
-                            // version of the error so that it can be debugged.
-                            .catch(err => {
-                                // We want the full error including stack to be printed but the log helper
-                                // messes with that.
-                                // eslint-disable-next-line no-console
-                                console.error('Custom extension block error', err);
-                                return `${err}`;
                             });
                 }
 

@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * @fileoverview List of blocks to be supported in the compiler compatibility layer.
  * This is only for native blocks. Extensions should not be listed here.
@@ -8,11 +10,9 @@
 const stacked = [
     'looks_changestretchby',
     'looks_hideallsprites',
-    'looks_say',
     'looks_sayforsecs',
     'looks_setstretchto',
     'looks_switchbackdroptoandwait',
-    'looks_think',
     'looks_thinkforsecs',
     'motion_align_scene',
     'motion_glidesecstoxy',
@@ -38,6 +38,7 @@ const inputs = [
     'motion_yscroll',
     'sensing_loud',
     'sensing_loudness',
+    'sensing_online',
     'sensing_userid',
     'sound_volume'
 ];

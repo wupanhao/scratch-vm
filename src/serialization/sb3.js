@@ -4,6 +4,7 @@
  * JSON and then generates all needed scratch-vm runtime structures.
  */
 
+const Runtime = require('../engine/runtime');
 const Blocks = require('../engine/blocks');
 const Sprite = require('../sprites/sprite');
 const Variable = require('../engine/variable');
@@ -480,38 +481,6 @@ const serializeSound = function (sound) {
     return obj;
 };
 
-// Using some bugs, it can be possible to get values like undefined, null, or complex objects into
-// variables or lists. This will cause make the project unusable after exporting without JSON editing
-// as it will fail validation in scratch-parser.
-// To avoid this, we'll convert those objects to strings before saving them.
-const isVariableValueSafeForJSON = value => (
-    typeof value === 'number' ||
-    typeof value === 'string' ||
-    typeof value === 'boolean'
-);
-const makeSafeForJSON = value => {
-    if (Array.isArray(value)) {
-        let copy = null;
-        for (let i = 0; i < value.length; i++) {
-            if (!isVariableValueSafeForJSON(value[i])) {
-                if (!copy) {
-                    // Only copy the list when needed
-                    copy = value.slice();
-                }
-                copy[i] = `${copy[i]}`;
-            }
-        }
-        if (copy) {
-            return copy;
-        }
-        return value;
-    }
-    if (isVariableValueSafeForJSON(value)) {
-        return value;
-    }
-    return `${value}`;
-};
-
 /**
  * Serialize the given variables object.
  * @param {object} variables The variables to be serialized.
@@ -533,12 +502,12 @@ const serializeVariables = function (variables) {
             continue;
         }
         if (v.type === Variable.LIST_TYPE) {
-            obj.lists[varId] = [v.name, makeSafeForJSON(v.value)];
+            obj.lists[varId] = [v.name, v.value];
             continue;
         }
 
         // otherwise should be a scalar type
-        obj.variables[varId] = [v.name, makeSafeForJSON(v.value)];
+        obj.variables[varId] = [v.name, v.value];
         // only scalar vars have the potential to be cloud vars
         if (v.isCloud) obj.variables[varId].push(true);
     }
@@ -698,10 +667,7 @@ const serializeMonitors = function (monitors, runtime, extensions) {
                 serializedMonitor.isDiscrete = monitorData.isDiscrete;
             }
             return serializedMonitor;
-        })
-        // By default the sequence is lazily evaluated, but we want it to be evaluated right
-        // now to update the used extension list.
-        .toArray();
+        });
 };
 
 /**
@@ -793,6 +759,9 @@ const serialize = function (runtime, targetId, {allowOptimization = true} = {}) 
     meta.agent = '';
     // TW: Never include full user agent to slightly improve user privacy
     // if (typeof navigator !== 'undefined') meta.agent = navigator.userAgent;
+
+    // TW: Attach copy of platform information
+    meta.platform = Object.assign({}, runtime.platform);
 
     // Assemble payload and return
     obj.meta = meta;
@@ -1111,7 +1080,7 @@ const parseScratchAssets = function (object, runtime, zip) {
         // we're always loading the 'sb3' representation of the costume
         // any translation that needs to happen will happen in the process
         // of building up the costume object into an sb3 format
-        return runtime.wrapAssetRequest(deserializeCostume(costume, runtime, zip)
+        return runtime.wrapAssetRequest(() => deserializeCostume(costume, runtime, zip)
             .then(() => loadCostume(costumeMd5Ext, costume, runtime)));
         // Only attempt to load the costume after the deserialization
         // process has been completed
@@ -1136,7 +1105,7 @@ const parseScratchAssets = function (object, runtime, zip) {
         // we're always loading the 'sb3' representation of the costume
         // any translation that needs to happen will happen in the process
         // of building up the costume object into an sb3 format
-        return runtime.wrapAssetRequest(deserializeSound(sound, runtime, zip)
+        return runtime.wrapAssetRequest(() => deserializeSound(sound, runtime, zip)
             .then(() => loadSound(sound, runtime, assets.soundBank)));
         // Only attempt to load the sound after the deserialization
         // process has been completed.
@@ -1436,7 +1405,7 @@ const deserializeMonitor = function (monitorData, runtime, targets, extensions) 
         }
     }
 
-    runtime.requestAddMonitor(MonitorRecord(monitorData));
+    runtime.requestAddMonitor(new MonitorRecord(monitorData));
 };
 
 // Replace variable IDs throughout the project with
@@ -1469,6 +1438,36 @@ const replaceUnsafeCharsInVariableIds = function (targets) {
 };
 
 /**
+ * @param {object} json
+ * @param {Runtime} runtime
+ * @returns {void|Promise<void>} Resolves when the user has acknowledged any compatibilities, if any exist.
+ */
+const checkPlatformCompatibility = (json, runtime) => {
+    if (!json.meta || !json.meta.platform) {
+        return;
+    }
+
+    const projectPlatform = json.meta.platform.name;
+    if (projectPlatform === runtime.platform.name) {
+        return;
+    }
+
+    let pending = runtime.listenerCount(Runtime.PLATFORM_MISMATCH);
+    if (pending === 0) {
+        return;
+    }
+
+    return new Promise(resolve => {
+        runtime.emit(Runtime.PLATFORM_MISMATCH, json.meta.platform, () => {
+            pending--;
+            if (pending === 0) {
+                resolve();
+            }
+        });
+    });
+};
+
+/**
  * Deserialize the specified representation of a VM runtime and loads it into the provided runtime instance.
  * @param  {object} json - JSON representation of a VM runtime.
  * @param  {Runtime} runtime - Runtime instance
@@ -1476,7 +1475,9 @@ const replaceUnsafeCharsInVariableIds = function (targets) {
  * @param {boolean} isSingleSprite - If true treat as single sprite, else treat as whole project
  * @returns {Promise.<ImportedProject>} Promise that resolves to the list of targets after the project is deserialized
  */
-const deserialize = function (json, runtime, zip, isSingleSprite) {
+const deserialize = async function (json, runtime, zip, isSingleSprite) {
+    await checkPlatformCompatibility(json, runtime);
+
     const extensions = {
         extensionIDs: new Set(),
         extensionURLs: new Map()
@@ -1484,8 +1485,10 @@ const deserialize = function (json, runtime, zip, isSingleSprite) {
 
     // Store the origin field (e.g. project originated at CSFirst) so that we can save it again.
     if (json.meta && json.meta.origin) {
+        // eslint-disable-next-line require-atomic-updates
         runtime.origin = json.meta.origin;
     } else {
+        // eslint-disable-next-line require-atomic-updates
         runtime.origin = null;
     }
 

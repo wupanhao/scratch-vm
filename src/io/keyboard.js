@@ -27,10 +27,10 @@ const KEY_NAME = {
 };
 
 /**
- * An array of the names of scratch keys.
- * @type {Array<string>}
+ * A set of the names of Scratch keys.
+ * @type {Set<string>}
  */
-const KEY_NAME_LIST = Object.keys(KEY_NAME).map(name => KEY_NAME[name]);
+const KEY_NAME_SET = new Set(Object.values(KEY_NAME));
 
 class Keyboard {
     constructor (runtime) {
@@ -53,6 +53,10 @@ class Keyboard {
         // tw: track last pressed key
         this.lastKeyPressed = '';
         this._numeralKeyCodesToStringKey = new Map();
+        /**
+         * Set of Scratch keys used by the project.
+         */
+        this._usedKeys = new Set();
     }
 
     /**
@@ -121,7 +125,9 @@ class Keyboard {
         keyArg = Cast.toString(keyArg);
 
         // If the arg matches a special key name, return it.
-        if (KEY_NAME_LIST.includes(keyArg)) {
+        // No special keys have a name that is only 1 character long, so we can avoid the lookup
+        // entirely in the most common case.
+        if (keyArg.length > 1 && KEY_NAME_SET.has(keyArg)) {
             return keyArg;
         }
 
@@ -196,12 +202,21 @@ class Keyboard {
             return this._keysPressed.length > 0;
         }
         const scratchKey = this._keyArgToScratchKey(keyArg);
+        this._usedKeys.add(scratchKey);
         return this._keysPressed.indexOf(scratchKey) > -1;
     }
 
     // tw: expose last pressed key
     getLastKeyPressed () {
         return this.lastKeyPressed;
+    }
+
+    /**
+     * @param {string} scratchKey Scratch key
+     * @returns {boolean} true if the project has used this key
+     */
+    hasUsedKey (scratchKey) {
+        return this._usedKeys.has(scratchKey);
     }
 }
 
