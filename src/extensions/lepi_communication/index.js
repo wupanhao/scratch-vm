@@ -206,7 +206,7 @@ class LepiComm extends EventEmitter {
             }
             let url = `http://${host}:8000/variable/message`
             try {
-                let res = await axios.post(encodeURI(url), JSON.stringify(data))
+                let res = await axios.post(encodeURI(url), data)
                 return '发送完成'
             }
             catch (error) {

@@ -77,48 +77,69 @@ class LepiLearningMachineImage extends EventEmitter {
         this.canvas.style.top = '0'
         this.canvas.style.left = '0'
 
-
-
-        try {
-            tf.setBackend('webgl').then((fulfilled) => {
+        if (false) {
+        // if ((navigator.platform != 'Win32') && location.hostname == 'localhost') {
+            const usePlatformFetch = true;
+            let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+            setWasmPath(wasm_path, usePlatformFetch);
+            tf.setBackend('wasm').then((fulfilled) => {
                 if (fulfilled) {
-                    console.log('webgl backend loaded')
+                    console.log('wasm backend loaded')
                 } else {
-                    const usePlatformFetch = true;
-                    let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
-                    setWasmPath(wasm_path, usePlatformFetch);
-                    /*
-                    setWasmPaths(
-                        {
-                            'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
-                            'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
-                            'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
-                        }
-                    )
-                    */
-                    tf.setBackend('wasm').then((fulfilled) => {
+                    tf.setBackend('cpu').then((fulfilled) => {
                         if (fulfilled) {
-                            console.log('wasm backend loaded')
+                            console.log('cpu backend loaded')
                         } else {
-                            tf.setBackend('cpu').then((fulfilled) => {
-                                if (fulfilled) {
-                                    console.log('cpu backend loaded')
-                                } else {
-                                    console.log('cpu backend not load')
-                                }
-                            });
+                            console.log('cpu backend not load')
                         }
                     });
                 }
             });
-        } catch (e) {
-            console.log(e)
-        }
+        } else {
 
+            try {
+                tf.setBackend('webgl').then((fulfilled) => {
+                    if (fulfilled) {
+                        console.log('webgl backend loaded')
+                    } else {
+                        const usePlatformFetch = true;
+                        let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+                        setWasmPath(wasm_path, usePlatformFetch);
+                        /*
+                        setWasmPaths(
+                            {
+                                'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
+                                'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
+                                'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
+                            }
+                        )
+                        */
+                        tf.setBackend('wasm').then((fulfilled) => {
+                            if (fulfilled) {
+                                console.log('wasm backend loaded')
+                            } else {
+                                tf.setBackend('cpu').then((fulfilled) => {
+                                    if (fulfilled) {
+                                        console.log('cpu backend loaded')
+                                    } else {
+                                        console.log('cpu backend not load')
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                console.log(e)
+            }
+        }
 
         try {
             this.setSize({ W: 360, H: 360 })
             this.updateModelList()
+            // setInterval(() => {
+            //     this.updateModelList()
+            // }, 3000)
         } catch (error) {
             console.log(error)
         }
@@ -290,6 +311,12 @@ class LepiLearningMachineImage extends EventEmitter {
     }
 
     openLearningMachineImage(args, util) {
+
+        if(window.EditorPreload && EditorPreload.openLearningMachineImage){
+            EditorPreload.openLearningMachineImage()
+            return
+        }
+
         let url = `../learning-machine/image.html`
         // if (window.location.protocol == 'https:') {
         //     url = `https://innovation.huaweiapaas.com/edu/machineImage`
@@ -311,10 +338,10 @@ class LepiLearningMachineImage extends EventEmitter {
     }
 
 
-    loadModel(file) {
+    loadModel(file, base64 = false) {
         return new Promise(async (resolve) => {
             try {
-                let zip = await JSZip.loadAsync(file, { base64: true })
+                let zip = await JSZip.loadAsync(file, { base64: base64 })
                 let model_json = await zip.file('model.json').async('Blob')
                 let weights = await zip.file('weights.bin').async('Blob')
                 let metadata = await zip.file('metadata.json').async('Blob')
@@ -322,6 +349,14 @@ class LepiLearningMachineImage extends EventEmitter {
                 this.model = await tmImage.loadFromFiles(new File([model_json], 'model.json'), new File([weights], 'weights.bin'), new File([metadata], 'metadata.json'))
                 console.log(this.model)
                 this.labels = this.model._metadata.labels
+                if (base64 == false && this.runtime.ros && this.runtime.ros.isConnected()) {
+                    var reader = new FileReader();
+                    reader.onload = async (e) => {
+                        await this.runtime.ros.saveFileData(file.name, e.target.result, '/home/pi/Lepi_Data/ros/learning_machine/image');
+                        await this.updateModelList()
+                    }
+                    reader.readAsDataURL(file);
+                }
             } catch (error) {
                 console.log(error)
             } finally {
@@ -363,6 +398,9 @@ class LepiLearningMachineImage extends EventEmitter {
     }
 
     async updateModelList() {
+        if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+            return '没有连接主机'
+        }
         // let url = `http://${this.runtime.vm.LEPI_IP}:8000/explore?dir=${this.model_dir}`
         let data = await this.runtime.ros.getFileList(this.model_dir)
         this.models = data.files.filter(item => item.endsWith('.zip'))
@@ -376,7 +414,7 @@ class LepiLearningMachineImage extends EventEmitter {
         // let file = '/home/pi/Lepi_Data/ros/learning_machine/image/test2.zip'
         let data = await this.runtime.ros.getFileData(`${this.model_dir}/${model_name}`)
         try {
-            await this.loadModel(data)
+            await this.loadModel(data, true)
             return Promise.resolve('加载成功')
         } catch (error) {
             console.log(error)
@@ -412,13 +450,14 @@ class LepiLearningMachineImage extends EventEmitter {
     async predict(args, util) {
         let img_src = document.querySelector('#lepi_camera')
         if (img_src) {
-            let ctx = this.canvas.getContext('2d')
-            let x = this.runtime.rect[0]
-            let y = this.runtime.rect[1]
-            let w = this.runtime.rect[2]
-            let h = this.runtime.rect[3]
-            ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
-            let result = await this.model.predict(this.canvas)
+            // let ctx = this.canvas.getContext('2d')
+            // let x = this.runtime.rect[0]
+            // let y = this.runtime.rect[1]
+            // let w = this.runtime.rect[2]
+            // let h = this.runtime.rect[3]
+            // ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
+            let result = await this.model.predict(img_src)
+            // let result = await this.model.predict(this.canvas)
             // let result = await this.predict_tiny(this.canvas)
             this.classes = result
             console.log(result)

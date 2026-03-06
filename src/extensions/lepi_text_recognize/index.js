@@ -106,6 +106,7 @@ class LepiTextRecognize extends EventEmitter {
                         LANG: {
                             type: ArgumentType.STRING,
                             menu: 'lang',
+                            defaultValue: 'zh',
                         }
                     }
                 }, {

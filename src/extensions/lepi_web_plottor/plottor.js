@@ -507,7 +507,7 @@ function update(width, height) {
 
     graph._canvas.width = width
     graph._canvas.height = height
-    console.log('resize called')
+    // console.log('resize called')
 
     let config = JSON.parse(data)
     // console.log(config)

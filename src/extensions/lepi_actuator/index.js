@@ -110,230 +110,260 @@ class LepiActuator extends EventEmitter {
             // menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             // showStatusButton: true,
-            blocks: [ 
-            // {
-            //     opcode: 'motorSetEnable',
-            //     text: '[TOGGLE] 电机 [PORT]',
-            //     blockType: BlockType.COMMAND,
-            //     arguments: {
-            //         PORT: {
-            //             type: ArgumentType.NUMBER,
-            //             menu: 'motorPorts',
-            //         },
-            //         TOGGLE: {
-            //             type: ArgumentType.NUMBER,
-            //             menu: 'toggle',
-            //         }
-            //     }
-            // },
-            {
-                opcode: 'motorSetSpeed',
-                text: formatMessage({
-                    id: 'lepi.motorSetSpeed',
-                    default: '电机 [PORT] 速度设为 [SPEED]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                    SPEED: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 50
+            blocks: [
+                // {
+                //     opcode: 'motorSetEnable',
+                //     text: '[TOGGLE] 电机 [PORT]',
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         PORT: {
+                //             type: ArgumentType.NUMBER,
+                //             menu: 'motorPorts',
+                //         },
+                //         TOGGLE: {
+                //             type: ArgumentType.NUMBER,
+                //             menu: 'toggle',
+                //         }
+                //     }
+                // },
+                {
+                    opcode: 'motorSetSpeed',
+                    text: formatMessage({
+                        id: 'lepi.motorSetSpeed',
+                        default: '电机 [PORT] 速度设为 [SPEED]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
+                        SPEED: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 50
+                        }
                     }
-                }
-            },
-            {
-                opcode: 'motorSetRotate',
-                text: formatMessage({
-                    id: 'lepi.motorSetRotate',
-                    default: '电机 [PORT] 转动 [VALUE] 度',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                    VALUE: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 90
+                },
+                {
+                    opcode: 'motorSetRotate',
+                    text: formatMessage({
+                        id: 'lepi.motorSetRotate',
+                        default: '电机 [PORT] 转动 [VALUE] 度',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 90
+                        }
                     }
-                }
-            },
-            {
-                opcode: 'motorSetHold',
-                text: formatMessage({
-                    id: 'lepi.motorSetHold',
-                    default: '电机 [PORT] 刹车',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                }
-            },
-            {
-                opcode: 'motorSetCurrentPosition',
-                text: formatMessage({
-                    id: 'lepi.motorSetCurrentPosition',
-                    default: '电机 [PORT] 编码器的值设置为 [VALUE]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts2',
-                    },
-                    VALUE: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0
+                },
+                {
+                    opcode: 'motorSetHold',
+                    text: formatMessage({
+                        id: 'lepi.motorSetHold',
+                        default: '电机 [PORT] 刹车',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
                     }
-                }
-            },
+                },
+                {
+                    opcode: 'motorSetCurrentPosition',
+                    text: formatMessage({
+                        id: 'lepi.motorSetCurrentPosition',
+                        default: '电机 [PORT] 编码器的值设置为 [VALUE]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts2',
+                        },
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        }
+                    }
+                },
 
-            {
-                opcode: 'motorSetPosition',
-                text: formatMessage({
-                    id: 'lepi.motorSetPosition',
-                    default: '电机 [PORT] 编码器转到 [POSITION]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                    POSITION: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0
+                {
+                    opcode: 'motorSetPosition',
+                    text: formatMessage({
+                        id: 'lepi.motorSetPosition',
+                        default: '电机 [PORT] 编码器转到 [POSITION]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
+                        POSITION: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        }
                     }
-                }
-            },
-            '---',
-            {
-                opcode: 'motorSetType',
-                text: formatMessage({
-                    id: 'lepi.motorSetType',
-                    default: '端口 [PORT] 设置为 [TYPE] 模式',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                    TYPE: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorType',
+                },
+                {
+                    opcode: 'motorsSetSpeed',
+                    text: formatMessage({
+                        id: 'lepi.motorsSetSpeed',
+                        default: '设置电机速度 M1:[M1] M2:[M2] M3:[M3] M4:[M4] M5:[M5]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        M1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '-'
+                        },
+                        M2: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '-'
+                        },
+                        M3: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '-'
+                        },
+                        M4: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '-'
+                        },
+                        M5: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: '-'
+                        },
                     }
+                },
+                '---',
+                {
+                    opcode: 'motorSetType',
+                    text: formatMessage({
+                        id: 'lepi.motorSetType',
+                        default: '端口 [PORT] 设置为 [TYPE] 模式',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
+                        TYPE: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorType',
+                        }
 
-                }
-            }, {
-                opcode: 'motorSetAngle',
-                text: formatMessage({
-                    id: 'lepi.motorSetAngle',
-                    default: '舵机 [PORT] 转到 [ANGLE]度',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    PORT: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'motorPorts',
-                    },
-                    ANGLE: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0,
-                    },
-                }
-            },
-            '---',
-            {
-                opcode: 'servoSetPosition',
-                text: formatMessage({
-                    id: 'lepi.servoSetPosition',
-                    default: '总线舵机 [ID] 以 [SPEEDTIME] [VALUE] 转到 [POSANGLE] [POSITION]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    ID: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 1
-                    },
-                    SPEEDTIME: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'speedtime',
-                        defaultValue: 0
-                    },
-                    VALUE: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0
-                    },
-                    POSITION: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0
-                    },
-                    POSANGLE: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'posangle',
-                        defaultValue: 1
-                    },
-                }
-            }, {
-                opcode: 'servoSetParam',
-                text: formatMessage({
-                    id: 'lepi.servoSetParam',
-                    default: '总线舵机 [ID] 修改参数[PARAM] 为 [VALUE]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    ID: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 1
-                    },
-                    PARAM: {
-                        type: ArgumentType.NUMBER,
-                        menu: 'servoParam'
-                    },
-                    VALUE: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 0
                     }
-                }
-            }, {
-                opcode: 'servoGetParam',
-                text: formatMessage({
-                    id: 'lepi.servoGetParam',
-                    default: '总线舵机 [ID] 读取参数[PARAM]',
-                }),
-                blockType: BlockType.REPORTER,
-                arguments: {
-                    ID: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 1
-                    },
-                    PARAM: {
-                        type: ArgumentType.STRING,
-                        menu: 'servoParam'
+                }, {
+                    opcode: 'motorSetAngle',
+                    text: formatMessage({
+                        id: 'lepi.motorSetAngle',
+                        default: '舵机 [PORT] 转到 [ANGLE]度',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'motorPorts',
+                        },
+                        ANGLE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0,
+                        },
                     }
-                }
-            }, {
-                opcode: 'servoReset',
-                text: formatMessage({
-                    id: 'lepi.servoReset',
-                    default: '重置总线舵机 [ID]',
-                }),
-                blockType: BlockType.COMMAND,
-                arguments: {
-                    ID: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 1
-                    }
-                }
-            },
+                },
+                // '---',
+                // {
+                //     opcode: 'servoSetPosition',
+                //     text: formatMessage({
+                //         id: 'lepi.servoSetPosition',
+                //         default: '总线舵机 [ID] 以 [SPEEDTIME] [VALUE] 转到 [POSANGLE] [POSITION]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         ID: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 1
+                //         },
+                //         SPEEDTIME: {
+                //             type: ArgumentType.NUMBER,
+                //             menu: 'speedtime',
+                //             defaultValue: 0
+                //         },
+                //         VALUE: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 0
+                //         },
+                //         POSITION: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 0
+                //         },
+                //         POSANGLE: {
+                //             type: ArgumentType.NUMBER,
+                //             menu: 'posangle',
+                //             defaultValue: 1
+                //         },
+                //     }
+                // }, {
+                //     opcode: 'servoSetParam',
+                //     text: formatMessage({
+                //         id: 'lepi.servoSetParam',
+                //         default: '总线舵机 [ID] 修改参数[PARAM] 为 [VALUE]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         ID: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 1
+                //         },
+                //         PARAM: {
+                //             type: ArgumentType.NUMBER,
+                //             menu: 'servoParam'
+                //         },
+                //         VALUE: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 0
+                //         }
+                //     }
+                // }, {
+                //     opcode: 'servoGetParam',
+                //     text: formatMessage({
+                //         id: 'lepi.servoGetParam',
+                //         default: '总线舵机 [ID] 读取参数[PARAM]',
+                //     }),
+                //     blockType: BlockType.REPORTER,
+                //     arguments: {
+                //         ID: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 1
+                //         },
+                //         PARAM: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'servoParam'
+                //         }
+                //     }
+                // }, {
+                //     opcode: 'servoReset',
+                //     text: formatMessage({
+                //         id: 'lepi.servoReset',
+                //         default: '重置总线舵机 [ID]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         ID: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 1
+                //         }
+                //     }
+                // },
 
             ],
             menus: {
@@ -474,6 +504,33 @@ class LepiActuator extends EventEmitter {
             return
         }
 
+    }
+    motorsSetSpeed(args) {
+        var m1 = parseInt(args.M1)
+        var m2 = parseInt(args.M2)
+        var m3 = parseInt(args.M3)
+        var m4 = parseInt(args.M4)
+        var m5 = parseInt(args.M5)
+        return new Promise((resolve) => {
+            let data = {}
+            if (!isNaN(m1)) {
+                data['m1'] = m1
+            }
+            if (!isNaN(m2)) {
+                data['m2'] = m2
+            }
+            if (!isNaN(m3)) {
+                data['m3'] = m3
+            }
+            if (!isNaN(m4)) {
+                data['m4'] = m4
+            }
+            if (!isNaN(m5)) {
+                data['m5'] = m5
+            }
+            this.runtime.ros.motorsSetSpeed(JSON.stringify(data))
+            resolve()
+        })
     }
 
     motorSetPosition(args, util) {

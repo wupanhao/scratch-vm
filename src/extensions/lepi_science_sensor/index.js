@@ -62,13 +62,13 @@ class LepiScienceSensor extends EventEmitter {
         this.keepReading = false;
 
         this.runtime = runtime;
-
+        this.white_list = [12346]
         this.runtime.on('LEPI_CONNECTED', () => {
         })
-        this.runtime.vm.on('PROJECT_RUN_STOP', () => {
-            // console.log('PROJECT_RUN_STOP')
-            this.keepReading = false
-        })
+        // this.runtime.vm.on('PROJECT_RUN_STOP', () => {
+        //     // console.log('PROJECT_RUN_STOP')
+        //     this.keepReading = false
+        // })
 
     }
 
@@ -187,6 +187,23 @@ class LepiScienceSensor extends EventEmitter {
                         },
                     }
                 },
+                {
+                    opcode: 'view_device_id',
+                    blockType: BlockType.REPORTER,
+                    text: "查看设备ID",
+                },
+                {
+                    opcode: 'set_white_list',
+                    blockType: BlockType.COMMAND,
+                    text: "设置白名单[LIST]",
+                    arguments: {
+                        LIST: {
+                            type: ArgumentType.STRING,
+                            defaultValue: '[12346]',
+                        },
+                    }
+                },
+
             ],
 
             menus: {
@@ -204,7 +221,7 @@ class LepiScienceSensor extends EventEmitter {
         };
     }
 
-    openSerialMonitor(){
+    openSerialMonitor() {
         let url = `../lepi-plottor`
         let a = document.createElement('a')
         a.href = url
@@ -242,20 +259,28 @@ class LepiScienceSensor extends EventEmitter {
                             let data = line[1].split(',').map(Number)
                             // console.log(prefix, data, ['FORCE', 'TEMPE', 'VOLTA', 'ECURR', 'MVOLT', 'MCURR', 'SOUND'].indexOf(prefix))
                             data.shift()
-                            let value = null
+                            let value = {}
                             if (prefix.startsWith('SPECT')) {
                                 let keys = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'CLE', 'NIR']
-                                value = {}
                                 for (let i = 0; i < keys.length; i++) {
                                     value[keys[i]] = data[i]
                                 }
                             } else if (prefix.startsWith('INFRA')) {
                                 value = { 'env': data[0], 'measure': data[1] }
                             } else if (['FORCE', 'TEMPE', 'VOLTA', 'ECURR', 'MVOLT', 'MCURR', 'SOUND'].indexOf(prefix) >= 0) {
-                                value = {}
+                                value[prefix] = data
+                            } else {
                                 value[prefix] = data
                             }
-                            if (value) {
+
+                            if (prefix.startsWith('SOUND')) {
+                                this.sensorState[index].buffer.push(data)
+                                if (this.sensorState[index].buffer.length > 32) {
+                                    this.sensorState[index].buffer = this.sensorState[index].buffer.slice(this.sensorState[index].buffer.length - 16)
+                                }
+                            }
+
+                            if (data.length > 0 && (!prefix.startsWith('ACCEL'))) {
                                 this.sensorState[index].value = value
                                 this.sensorState[index].raw_data = data
                                 this.sensorState[index].updated = true
@@ -268,15 +293,8 @@ class LepiScienceSensor extends EventEmitter {
                                         this.sensorState[index].sensor_name = `${nameMap[type]}-${count + 1}`
                                         this.sensorNameMap[`${nameMap[type]}-${count + 1}`] = index
                                     } else {
-                                        this.sensorState[index].sensor_name = `${nameMap[type]}`
-                                        this.sensorNameMap[`${nameMap[type]}`] = index
-                                    }
-                                }
-
-                                if (prefix.startsWith('SOUND')) {
-                                    this.sensorState[index].buffer.push(data)
-                                    if (this.sensorState[index].buffer.length > 32) {
-                                        this.sensorState[index].buffer = this.sensorState[index].buffer.slice(this.sensorState[index].buffer.length - 16)
+                                        this.sensorState[index].sensor_name = `${nameMap[type] ? nameMap[type] : type}`
+                                        this.sensorNameMap[`${nameMap[type] ? nameMap[type] : type}`] = index
                                     }
                                 }
                             }
@@ -314,11 +332,20 @@ class LepiScienceSensor extends EventEmitter {
     }
 
     async connectSensors(args, util) {
+        this.keepReading = false
+        await new Promise((resolve, reject) => setTimeout(resolve, 2000));
         this.keepReading = true
         let ports = await navigator.serial.getPorts()
+        let white_list = []
+        if (ports.length == 1) {
+            white_list = [ports[0].getInfo().usbVendorId]
+        } else {
+            white_list = this.white_list
+        }
         for (let index = 0; index < ports.length; index++) {
             const port = ports[index];
-            if (port.getInfo().usbVendorId == 12346) {
+            console.log(port.getInfo())
+            if (white_list.indexOf(port.getInfo().usbVendorId) >= 0) {
                 this.sensorState[index + 1] = {
                     type: '',
                     sensor_name: '',
@@ -372,6 +399,8 @@ class LepiScienceSensor extends EventEmitter {
             let data = this.sensorState[sensor_id].raw_data
             if (['FORCE', 'TEMPE', 'VOLTA', 'ECURR', 'MVOLT', 'MCURR'].indexOf(type) >= 0) {
                 return data[data.length - 1]
+            } else if (data.length == 1) {
+                return data[0]
             } else {
                 return JSON.stringify(this.sensorState[sensor_id].value)
             }
@@ -453,6 +482,22 @@ class LepiScienceSensor extends EventEmitter {
             return JSON.stringify(this.sensorState[sensor_id].raw_data)
         }
     }
+    async view_device_id() {
+        await navigator.serial.requestPort()
+        let ports = await navigator.serial.getPorts()
+        let ids = ports.map(port => {
+            return port.getInfo().usbVendorId
+        })
+        console.log(ids)
+        return JSON.stringify(ids)
+    }
+    set_white_list(args) {
+        let ids = JSON.parse(args.LIST)
+        if (ids.length > 0) {
+            this.white_list = ids
+        }
+    }
+
 }
 
 

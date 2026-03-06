@@ -34,6 +34,8 @@ class LepiAudio extends EventEmitter {
         this.runtime = runtime;
         this.musics = []
         this.music_dir = '/home/pi/Lepi_Data/Music'
+        this.recordings = []
+        this.recording_dir = '/home/pi/Lepi_Data/Recording'
         this.audio = document.createElement('audio')
         this.audio.display = 'none'
         document.querySelector('body').appendChild(this.audio)
@@ -45,6 +47,11 @@ class LepiAudio extends EventEmitter {
             console.log('LEPI_CONNECTED', 'update Music List')
             this.updateMusicList()
         })
+
+        // setInterval(() => {
+        //     this.updateMusicList()
+        // }, 3000)
+
     }
 
     /**
@@ -64,7 +71,7 @@ class LepiAudio extends EventEmitter {
             name: formatMessage({
                 id: 'lepi.lepiAudio',
                 default: '音频',
-            }) ,
+            }),
             // menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             // showStatusButton: true,
@@ -74,21 +81,21 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.isRecording',
                         default: '录音中?',
-                    }) ,
+                    }),
                     blockType: BlockType.BOOLEAN,
                 }, {
                     opcode: 'startRecording',
                     text: formatMessage({
                         id: 'lepi.startRecording',
                         default: '开始录音',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                 }, {
                     opcode: 'stopRecordingAndSave',
                     text: formatMessage({
                         id: 'lepi.stopRecordingAndSave',
                         default: '结束录音,[SAVE] [FILE_NAME].wav',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                     arguments: {
                         SAVE: {
@@ -106,17 +113,30 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.previewRecording',
                         default: '回放录音',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                 },
-
+                {
+                    opcode: 'recording',
+                    text: formatMessage({
+                        id: 'lepi.recording',
+                        default: '录音 [MUSIC]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        MUSIC: {
+                            type: ArgumentType.STRING,
+                            menu: 'recordings'
+                        },
+                    }
+                },
                 '---',
                 {
                     opcode: 'updateMusicList',
                     text: formatMessage({
                         id: 'lepi.updateMusicList',
                         default: '更新音频列表',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                 },
                 {
@@ -124,7 +144,7 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.musicPlaying',
                         default: '正在播放音频?',
-                    }) ,
+                    }),
                     blockType: BlockType.BOOLEAN,
                 },
                 {
@@ -132,7 +152,7 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.playMusic',
                         default: '播放 [MUSIC] [WAITING]',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                     arguments: {
                         MUSIC: {
@@ -151,7 +171,7 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.music',
                         default: '音频 [MUSIC]',
-                    }) ,
+                    }),
                     blockType: BlockType.REPORTER,
                     arguments: {
                         MUSIC: {
@@ -164,7 +184,7 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.musicNumber',
                         default: '第 [NUM] 段音频',
-                    }) ,
+                    }),
                     blockType: BlockType.REPORTER,
                     arguments: {
                         NUM: {
@@ -177,7 +197,7 @@ class LepiAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.playControl',
                         default: '播放控制 [ACTION]',
-                    }) ,
+                    }),
                     blockType: BlockType.COMMAND,
                     arguments: {
                         ACTION: {
@@ -193,40 +213,41 @@ class LepiAudio extends EventEmitter {
                 waiting: Menu.formatMenu([formatMessage({
                     id: 'lepi.no_wait',
                     default: '不等待',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.wait',
                     default: '等待',
-                }) ]),
+                })]),
                 save: Menu.formatMenu([formatMessage({
                     id: 'lepi.no_save',
                     default: '不保存',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.save_as',
                     default: '保存为',
-                }) ]),
+                })]),
                 controls: Menu.formatMenu([formatMessage({
                     id: 'lepi.play_resume',
                     default: '暂停/继续',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.fast_forward',
                     default: '快进10秒',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.fast_backward',
                     default: '快退10秒',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.stop_playing',
                     default: '停止播放',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.muse',
                     default: '静音',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.volume_up',
                     default: '音量+',
-                }) , formatMessage({
+                }), formatMessage({
                     id: 'lepi.volume_down',
                     default: '音量-',
-                }) ]),
+                })]),
                 musics: 'formatMusicList',
+                recordings: 'formatRecordingList',
             },
 
         };
@@ -239,8 +260,11 @@ class LepiAudio extends EventEmitter {
         if (this.mediaRecorder) {
             return '正在录音'
         } else {
-            return new Promise(resolve => {
+            return new Promise((resolve) => {
                 var constraints = { audio: true };
+                if (window.navigator.userAgent.indexOf('aarch64') > 0 && window.audio_constraints) {
+                    constraints = window.audio_constraints
+                }
                 this.chunks = [];
 
                 navigator.mediaDevices.getUserMedia(constraints)
@@ -265,12 +289,14 @@ class LepiAudio extends EventEmitter {
 
     saveRecording(blob, file_name) {
 
-        var reader = new FileReader();
-        reader.onload = (e) => {
-            this.runtime.ros.saveFileData(file_name + ".wav", e.target.result);
-            resolve('保存成功')
-        }
-        reader.readAsDataURL(blob);
+        return new Promise(resolve => {
+            var reader = new FileReader();
+            reader.onload = (e) => {
+                this.runtime.ros.saveFileData(file_name + ".wav", e.target.result);
+                resolve('保存成功')
+            }
+            reader.readAsDataURL(blob);
+        })
         /*
         return new Promise(resolve => {
             let URL = 'http://' + this.runtime.ros.ip + ':8000/upload/save'
@@ -318,6 +344,7 @@ class LepiAudio extends EventEmitter {
                         } else {
                             this.saveRecording(blob, file_name).then((msg) => {
                                 resolve(msg)
+                                this.updateMusicList()
                             })
                         }
                     } else {
@@ -364,9 +391,14 @@ class LepiAudio extends EventEmitter {
     }
 
     async updateMusicList() {
+        if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+            return '没有连接主机'
+        }
         // let url = `http://${this.runtime.vm.LEPI_IP}:8000/explore?dir=${this.music_dir}`
         let data = await this.runtime.ros.getFileList(this.music_dir)
         this.musics = data.files.filter(item => item.endsWith('.mp3') || item.endsWith('.wav'))
+        let recordings = await this.runtime.ros.getFileList(this.recording_dir)
+        this.recordings = recordings.files.filter(item => item.endsWith('.mp3') || item.endsWith('.wav'))
         // this.music_dir = data.current
         return this.musics.join(',')
     }
@@ -375,9 +407,18 @@ class LepiAudio extends EventEmitter {
         return Menu.formatMenu2(this.musics)
     }
 
+    formatRecordingList() {
+        return Menu.formatMenu2(this.recordings)
+    }
+
     music(args, util) {
         let music = args.MUSIC
         return `http://${this.runtime.vm.LEPI_IP}:8000${this.music_dir.replace('/home/pi/Lepi_Data', '/explore')}/${music}`
+    }
+
+    recording(args, util) {
+        let music = args.MUSIC
+        return `http://${this.runtime.vm.LEPI_IP}:8000${this.recording_dir.replace('/home/pi/Lepi_Data', '/explore')}/${music}`
     }
 
     playMusic(args, util) {

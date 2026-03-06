@@ -75,7 +75,7 @@ class LepiPoseEstimate extends EventEmitter {
                 opcode: 'poseKeypoints',
                 text: formatMessage({
                     id: 'lepi.poseKeypoints',
-                    default: '人体[N]号关键点 [POINT]',
+                    default: '人体[N]号特征点 [POINT]',
                 }),
                 blockType: BlockType.REPORTER,
                 arguments: {

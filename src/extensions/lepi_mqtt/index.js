@@ -34,6 +34,7 @@ class LepiMQTT extends EventEmitter {
         this.newMsgFlag = false
         this.msgQueue = []
         this.client = null
+        this.cid = 'lepi_mqttjs_' + Math.random().toString(16).substring(2, 8)
 
 
         // if (this.runtime.ros && this.runtime.ros.isConnected()) {
@@ -77,19 +78,19 @@ class LepiMQTT extends EventEmitter {
                     arguments: {
                         URL: {
                             type: ArgumentType.STRING,
-                            defaultValue: 'ws://'
+                            defaultValue: 'wss://broker.emqx.io:8084/mqtt'
                         },
                         CLIENTID: {
                             type: ArgumentType.STRING,
-                            defaultValue: Math.random().toString(16).substring(2, 8)
+                            defaultValue: ''
                         },
                         USERNAME: {
                             type: ArgumentType.STRING,
-                            defaultValue: 'test'
+                            defaultValue: 'username'
                         },
                         PASSWORD: {
                             type: ArgumentType.STRING,
-                            defaultValue: 'test'
+                            defaultValue: 'password'
                         },
                     }
                 },
@@ -185,11 +186,14 @@ class LepiMQTT extends EventEmitter {
         return JSON.stringify(this.joyState)
     }
     connectToEMQXBroker(args, util) {
-        let cid = 'mqttjs_' + Math.random().toString(16).substring(2, 8)
-        return this.connectToMQTTBroker({ URL: 'ws://broker.emqx.io:8083/mqtt', CLIENTID: cid, USERNAME: 'lepi_test', PASSWORD: 'lepi_test' })
+        // let cid = 'mqttjs_' + Math.random().toString(16).substring(2, 8)
+        return this.connectToMQTTBroker({ URL: 'wss://broker.emqx.io:8084/mqtt', CLIENTID: this.cid, USERNAME: 'lepi_test', PASSWORD: 'lepi_test' })
     }
     connectToMQTTBroker(args, util) {
-
+        let cid = this.cid
+        if (args.CLIENTID.trim().length > 0) {
+            cid = args.CLIENTID.trim()
+        }
         return new Promise(resolve => {
             const url = args.URL
             // const url = 'ws://broker.emqx.io:8083/mqtt'
@@ -200,7 +204,7 @@ class LepiMQTT extends EventEmitter {
                 clean: true,
                 connectTimeout: 15 * 1000,
                 // 认证信息
-                clientId: args.CLIENTID,
+                clientId: cid,
                 username: args.USERNAME,
                 password: args.PASSWORD,
                 reconnectPeriod: 0,
@@ -250,7 +254,7 @@ class LepiMQTT extends EventEmitter {
     }
     publishMsgTo(args, util) {
         let topic = args.TOPIC
-        let msg = args.MSG
+        let msg = String(args.MSG)
         this.client.publish(topic, msg)
     }
 

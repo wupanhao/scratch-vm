@@ -21,10 +21,10 @@ class LepiHandDetect extends EventEmitter {
          * The runtime instantiating this block package.
          * @type {Runtime}
          */
-        this.result = {
-            keypoints: []
-        }
+        this.result = []
         this.runtime = runtime;
+        this.leftHandLandmarks = []
+        this.rightHandLandmarks = []
     }
 
     /**
@@ -70,49 +70,66 @@ class LepiHandDetect extends EventEmitter {
                 }),
                 blockType: BlockType.REPORTER,
             },
+            // {
+            //     opcode: 'handData',
+            //     text: formatMessage({
+            //         id: 'lepi.handData',
+            //         default: '第[I]只手的 [DATA]',
+            //     }),
+            //     blockType: BlockType.REPORTER,
+            //     arguments: {
+            //         I: {
+            //             type: ArgumentType.NUMBER,
+            //             defaultValue: 1
+            //         },
+            //         DATA: {
+            //             type: ArgumentType.NUMBER,
+            //             menu: 'data',
+            //             defaultValue: 0
+            //         }
+            //     }
+            // },
             {
-                opcode: 'handData',
+                opcode: 'handLandmarksData',
                 text: formatMessage({
-                    id: 'lepi.handData',
-                    default: '第[I]只手的 [DATA]',
+                    id: 'lepi.handLandmarksData',
+                    default: '[HAND]手的 [DATA]',
                 }),
                 blockType: BlockType.REPORTER,
                 arguments: {
-                    I: {
+                    HAND: {
                         type: ArgumentType.NUMBER,
-                        defaultValue: 1
+                        menu: 'hand',
                     },
                     DATA: {
                         type: ArgumentType.NUMBER,
-                        menu: 'data',
-                        defaultValue: 0
+                        menu: 'data2',
                     }
                 }
             },
             {
-                opcode: 'handKeypoints',
+                opcode: 'handLandmarks',
                 text: formatMessage({
-                    id: 'lepi.handKeypoints',
-                    default: '第[I]只手[N]号关键点 [POINT]',
+                    id: 'lepi.handLandmarks',
+                    default: '[HAND]手 [N]号特征点 [POINT]',
                 }),
                 blockType: BlockType.REPORTER,
                 arguments: {
-                    I: {
+                    HAND: {
                         type: ArgumentType.NUMBER,
-                        defaultValue: 1
+                        menu: 'hand',
                     },
                     N: {
                         type: ArgumentType.NUMBER,
-                        defaultValue: 0,
-                        menu: 'pointId'
+                        menu: 'handLandmarks',
                     },
                     POINT: {
                         type: ArgumentType.NUMBER,
-                        menu: 'point',
-                        defaultValue: 0
+                        menu: 'landmarks',
                     }
                 }
             },
+
             ],
             menus: {
                 data: Menu.formatMenu([formatMessage({
@@ -137,6 +154,19 @@ class LepiHandDetect extends EventEmitter {
                     id: 'lepi.height',
                     default: '高度',
                 })]),
+                data2: Menu.formatMenu([formatMessage({
+                    id: 'lepi.center_x',
+                    default: '中心点x坐标',
+                }), formatMessage({
+                    id: 'lepi.center_y',
+                    default: '中心点y坐标',
+                }), formatMessage({
+                    id: 'lepi.width',
+                    default: '宽度',
+                }), formatMessage({
+                    id: 'lepi.height',
+                    default: '高度',
+                })]),
                 point: Menu.formatMenu([formatMessage({
                     id: 'lepi.x',
                     default: 'x坐标',
@@ -144,7 +174,9 @@ class LepiHandDetect extends EventEmitter {
                     id: 'lepi.y',
                     default: 'y坐标',
                 })]),
-                pointId: Menu.formatMenu4(21),
+                landmarks: Menu.formatMenu(['x坐标', 'y坐标', 'z坐标']),
+                handLandmarks: Menu.formatMenu4(21),
+                hand: Menu.formatMenu(['右或左', '左', '右']),
             },
         };
     }
@@ -155,6 +187,18 @@ class LepiHandDetect extends EventEmitter {
         return new Promise((resolve) => {
             this.runtime.ros.detectHand().then(data => {
                 this.result = JSON.parse(data)
+
+                this.leftHandLandmarks = []
+                this.rightHandLandmarks = []
+                for (let i = 0; i < this.result.length; i++) {
+                    const landmarks = this.result[i].keypoints;
+                    if (this.result[i].label == 'Right') { //左手
+                        this.leftHandLandmarks = landmarks
+                    } else {
+                        this.rightHandLandmarks = landmarks
+                    }
+                }
+
                 resolve(this.result.length)
             })
         })
@@ -164,6 +208,34 @@ class LepiHandDetect extends EventEmitter {
     }
     handCount() {
         return this.result.length
+    }
+    getHandBox(keypoints) {
+        let top = 360, left = 480, bottom = 0, right = 0
+        for (let index = 0; index < keypoints.length; index++) {
+            const p = keypoints[index];
+            if (p[0] < left) {
+                left = p[0]
+            }
+            if (p[1] < top) {
+                top = p[1]
+            }
+            if (p[0] > right) {
+                right = p[0]
+            }
+            if (p[1] > bottom) {
+                bottom = p[1]
+            }
+        }
+        left = left > 0 ? left : 0
+        top = top > 0 ? top : 0
+        right = right < 480 ? right : 480
+        bottom = bottom < 360 ? bottom : 360
+        let x = parseInt((left + right) / 2)
+        let y = parseInt((top + bottom) / 2)
+        let w = parseInt(right - left)
+        let h = parseInt(bottom - top)
+        console.log(left, top, right, bottom, x, y, w, h)
+        return [x, y, w, h]
     }
     handData(args, util) {
         let i = parseInt(args.I) - 1
@@ -185,45 +257,36 @@ class LepiHandDetect extends EventEmitter {
                 }
             } else if (data_id == 2) {
                 return parseInt(hand.score * 100)
-            } else {
-                let top = 360, left = 480, bottom = 0, right = 0
-                for (let index = 0; index < hand.keypoints.length; index++) {
-                    const p = hand.keypoints[index];
-                    if (p[0] < left) {
-                        left = p[0]
-                    }
-                    if (p[1] < top) {
-                        top = p[1]
-                    }
-                    if (p[0] > right) {
-                        right = p[0]
-                    }
-                    if (p[1] > bottom) {
-                        bottom = p[1]
-                    }
-                }
-                left = left > 0 ? left : 0
-                top = top > 0 ? top : 0
-                right = right < 480 ? right : 480
-                bottom = bottom < 360 ? bottom : 360
-                let x = parseInt((left + right) / 2)
-                let y = parseInt((top + bottom) / 2)
-                let w = parseInt(right - left)
-                let h = parseInt(bottom - top)
-                console.log(left, top, right, bottom, x, y, w, h)
-                if (data_id == 3) {
-                    return x
-                } else if (data_id == 4) {
-                    return y
-                } else if (data_id == 5) {
-                    return w
-                } else if (data_id == 6) {
-                    return h
-                }
+            } else if (data_id >= 3) {
+                let data = this.getHandBox(hand.keypoints)
+                return data[data_id - 3]
             }
         } else {
             return 0
         }
+    }
+    handLandmarksData(args, util) {
+        let i = parseInt(args.HAND)
+        let data_id = parseInt(args.DATA)
+        let landmarks = []
+        if (i == 0) {
+            if (this.rightHandLandmarks && this.rightHandLandmarks.length > 0) {
+                landmarks = this.rightHandLandmarks
+            } else if (this.leftHandLandmarks && this.leftHandLandmarks.length > 0) {
+                landmarks = this.leftHandLandmarks
+            }
+        } else if (i == 1) {
+            landmarks = this.leftHandLandmarks
+        } else {
+            landmarks = this.rightHandLandmarks
+        }
+        if (landmarks && landmarks.length > 0) {
+            let data = this.getHandBox(landmarks)
+            return data[data_id]
+
+        }
+        return 0
+
     }
     handKeypoints(args, util) {
         let i = parseInt(args.I) - 1
@@ -235,7 +298,28 @@ class LepiHandDetect extends EventEmitter {
         }
         return 0
     }
-
+    handLandmarks(args, util) {
+        let i = parseInt(args.HAND)
+        let id = parseInt(args.N)
+        let axis = parseInt(args.POINT)
+        let wh = [1, 1, 480]
+        let landmarks = []
+        if (i == 0) {
+            if (this.rightHandLandmarks && this.rightHandLandmarks.length > 0) {
+                landmarks = this.rightHandLandmarks
+            } else if (this.leftHandLandmarks && this.leftHandLandmarks.length > 0) {
+                landmarks = this.leftHandLandmarks
+            }
+        } else if (i == 1) {
+            landmarks = this.leftHandLandmarks
+        } else {
+            landmarks = this.rightHandLandmarks
+        }
+        if (landmarks && landmarks.length > 0) {
+            return parseInt(landmarks[id][axis] * wh[axis])
+        }
+        return 0
+    }
 }
 
 module.exports = LepiHandDetect;

@@ -21,6 +21,43 @@ const menuIconURI = blockIconURI;
 let width = 480
 let height = 360
 
+const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+});
+
+// 核心代码：保持长宽比缩放图片到Canvas
+function drawImageToCanvas(image, canvas) {
+    const ctx = canvas.getContext('2d');
+    const canvasAspect = canvas.width / canvas.height;
+    const imageAspect = image.width / image.height;
+
+    let renderWidth, renderHeight, x, y;
+
+    // 计算缩放比例和位置
+    if (imageAspect > canvasAspect) {
+        // 图片更宽，以宽度为基准缩放
+        renderWidth = canvas.width;
+        renderHeight = canvas.width / imageAspect;
+        x = 0;
+        y = (canvas.height - renderHeight) / 2;
+    } else {
+        // 图片更高，以高度为基准缩放
+        renderHeight = canvas.height;
+        renderWidth = canvas.height * imageAspect;
+        x = (canvas.width - renderWidth) / 2;
+        y = 0;
+    }
+
+    // 清除Canvas并绘制图片
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, x, y, renderWidth, renderHeight);
+    console.log(imageAspect, canvasAspect, x, y, renderWidth, renderHeight)
+    return { width: renderWidth, height: renderHeight, x, y };
+}
+
 const topic_maps = {
     "/ubiquityrobot/line_detector_node/image_color": formatMessage({
         id: 'lepi.color_detect',
@@ -173,7 +210,7 @@ class LepiCamera extends EventEmitter {
 
         this.ctx = this.canvas.getContext('2d')
 
-        this.img.setAttribute("crossOrigin", 'Anonymous');
+        // this.img.setAttribute("crossOrigin", 'Anonymous');
         this.img.width = 480
         this.img.height = 360
         this.img.style.display = 'block'
@@ -211,15 +248,20 @@ class LepiCamera extends EventEmitter {
             text: '默认',
             value: ' '
         }]
+        this.stopUpdating = false
+        this.photos = []
+        this.photo_dir = '/home/pi/Lepi_Data/Photo'
 
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             this.getStreamList()
             this.listCaliFiles()
+            this.updatePhotoList()
         }
         this.runtime.on('LEPI_CONNECTED', () => {
             console.log('LEPI_CONNECTED', 'getStreamList')
             this.getStreamList()
             this.listCaliFiles()
+            this.updatePhotoList()
         })
         this.getCameraList()
 
@@ -271,6 +313,28 @@ class LepiCamera extends EventEmitter {
             },
 
             {
+                opcode: 'cameraSetFlip',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.cameraSetFlip',
+                    default: '摄像头翻转 [FLIPCODE]',
+                }),
+                arguments: {
+                    FLIPCODE: {
+                        type: ArgumentType.STRING,
+                        menu: 'cameraFlip'
+                    }
+                }
+            },
+            {
+                opcode: 'getStreamList',
+                text: formatMessage({
+                    id: 'lepi.getStreamList',
+                    default: '更新图像列表',
+                }),
+                blockType: BlockType.COMMAND,
+            },
+            {
                 opcode: '_setupPreview',
                 blockType: BlockType.COMMAND,
                 text: formatMessage({
@@ -307,14 +371,7 @@ class LepiCamera extends EventEmitter {
                     default: '关闭图像',
                 }),
             },
-            {
-                opcode: 'getStreamList',
-                text: formatMessage({
-                    id: 'lepi.getStreamList',
-                    default: '更新图像列表',
-                }),
-                blockType: BlockType.COMMAND,
-            },
+
             {
                 opcode: 'openVideoPage',
                 text: formatMessage({
@@ -334,7 +391,7 @@ class LepiCamera extends EventEmitter {
                 arguments: {
                     ImageData: {
                         type: ArgumentType.STRING,
-                        defaultValue: ' '
+                        defaultValue: '链接或base64'
                     }
                 }
             },
@@ -356,11 +413,11 @@ class LepiCamera extends EventEmitter {
                 }),
             },
             {
-                opcode: 'savePic',
+                opcode: 'downloadPic',
                 blockType: BlockType.COMMAND,
                 text: formatMessage({
-                    id: 'lepi.savePic',
-                    default: '保存快照为[FILE_NAME].png',
+                    id: 'lepi.downloadPic',
+                    default: '下载图像到电脑[FILE_NAME].png',
                 }),
                 arguments: {
                     FILE_NAME: {
@@ -369,6 +426,35 @@ class LepiCamera extends EventEmitter {
                     }
                 }
             },
+            {
+                opcode: 'savePic',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.savePic',
+                    default: '保存快照到主机[FILE_NAME].png',
+                }),
+                arguments: {
+                    FILE_NAME: {
+                        type: ArgumentType.STRING,
+                        defaultValue: '-'
+                    }
+                }
+            },
+            {
+                opcode: 'photo',
+                blockType: BlockType.REPORTER,
+                text: formatMessage({
+                    id: 'lepi.photo',
+                    default: '照片[FILE_NAME]',
+                }),
+                arguments: {
+                    FILE_NAME: {
+                        type: ArgumentType.STRING,
+                        menu: 'photos'
+                    }
+                }
+            },
+
                 '---',
             {
                 opcode: 'drawRect',
@@ -434,20 +520,6 @@ class LepiCamera extends EventEmitter {
             },
 
 
-            {
-                opcode: 'cameraSetFlip',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.cameraSetFlip',
-                    default: '摄像头翻转 [FLIPCODE]',
-                }),
-                arguments: {
-                    FLIPCODE: {
-                        type: ArgumentType.STRING,
-                        menu: 'cameraFlip'
-                    }
-                }
-            },
 
             {
                 opcode: 'cameraSetRectify',
@@ -520,7 +592,14 @@ class LepiCamera extends EventEmitter {
                     }
                 }
             },
-
+            {
+                opcode: 'openLocalImage',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.openLocalImage',
+                    default: '上传本地图片',
+                }),
+            },
             {
                 opcode: 'toggleCamera',
                 blockType: BlockType.COMMAND,
@@ -540,7 +619,7 @@ class LepiCamera extends EventEmitter {
                     },
                     ONOFF: {
                         type: ArgumentType.STRING,
-                        defaultValue: 1,
+                        defaultValue: 0,
                         menu: 'cameraRectify'
                     },
                 }
@@ -571,6 +650,7 @@ class LepiCamera extends EventEmitter {
                     default: '不翻转',
                 })], start = -1),
                 cameraList: 'formatCameraList',
+                photos: 'formatPhotoList',
             },
 
         };
@@ -704,18 +784,18 @@ class LepiCamera extends EventEmitter {
                 visible: true
             });
 
-            this._renderPreviewFrame = () => {
-                clearTimeout(this._renderPreviewTimeout);
-                if (!this._renderPreviewFrame) {
-                    return;
-                }
+            // this._renderPreviewFrame = () => {
+            //     clearTimeout(this._renderPreviewTimeout);
+            //     if (!this._renderPreviewFrame) {
+            //         return;
+            //     }
 
-                this._renderPreviewTimeout = setTimeout(this._renderPreviewFrame, this.runtime.currentStepTime);
+            //     this._renderPreviewTimeout = setTimeout(this._renderPreviewFrame, this.runtime.currentStepTime);
 
-                this.drawImg()
+            //     this.drawImg()
 
-                // ctx.drawImage(img,0,0); // Or at whatever offset you like
-            };
+            //     // ctx.drawImage(img,0,0); // Or at whatever offset you like
+            // };
             // this._renderPreviewFrame();
 
         }
@@ -868,7 +948,7 @@ class LepiCamera extends EventEmitter {
         }
 
     }
-    showPicFromSource(args, util) {
+    async showPicFromSource(args, util) {
 
         const {
             renderer
@@ -890,24 +970,39 @@ class LepiCamera extends EventEmitter {
             visible: true
         });
 
-        this.img.onload = () => {
-            console.log('img loaded', this._skin)
-            try {
-                this.drawStamp(this.img, xOffset, yOffset);
-                this.ctx.drawImage(this.img, 0, 0)
-                this.runtime.requestRedraw();
-                console.log('requestRedraw')
-            } catch (error) {
-                console.log(error)
-                this._disablePreview()
-            }
-            this.img.onload = null
-        }
+        let image = new Image()
 
-        // this.img.src = url.replace('ws', 'http').replace('9090', '8080') + "/snapshot?topic=" + topic;
-        this.img.crossOrigin = 'anonymous';
-        console.log(this.img)
-        this.img.setAttribute('src', args.ImageData);
+        return new Promise(resolve => {
+            image.onload = () => {
+                console.log('img loaded', this._skin)
+                try {
+
+                    // this.ctx.drawImage(image, 0, 0)
+
+                    let canvas = this.canvas
+                    let ctx = this.ctx
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    console.log(image.width, image.height, canvas.width, canvas.height)
+                    drawImageToCanvas(image, canvas)
+                    this.drawStamp(canvas, xOffset, yOffset);
+
+                    this.runtime.requestRedraw();
+                    console.log('requestRedraw')
+                    resolve()
+                } catch (error) {
+                    console.log(error)
+                    this._disablePreview()
+                    resolve()
+                }
+                image.onload = null
+            }
+
+            // this.img.src = url.replace('ws', 'http').replace('9090', '8080') + "/snapshot?topic=" + topic;
+            image.crossOrigin = 'anonymous';
+            console.log(image)
+            image.setAttribute('src', args.ImageData);
+
+        })
 
     }
 
@@ -920,6 +1015,7 @@ class LepiCamera extends EventEmitter {
         }
     }
     freezeSnapshot() {
+        this.stopUpdating = true
         if (this.listener) {
             try {
                 this.listener.unsubscribe()
@@ -1066,11 +1162,28 @@ class LepiCamera extends EventEmitter {
         var file_name = args.FILE
         return this.runtime.ros.loadCaliFile(file_name)
     }
-    toggleCamera(args, util) {
+    async toggleCamera(args, util) {
         let action = parseInt(args.ACTION)
         let onoff = parseInt(args.ONOFF)
         let deviceId = args.CAMERA
+
+        // On Lepi
+        if ((navigator.platform != 'Win32') && location.hostname == 'localhost') {
+            if (action) {
+                await this.openCamera({ ID: '0' })
+            } else {
+                await this.closeCamera()
+            }
+            if (onoff == 1) {
+                await this.cameraSetFlip({ FLIPCODE: 1 })
+            }else{
+                await this.cameraSetFlip({ FLIPCODE: 2 })
+            }
+            return
+        }
+
         if (action) {
+            this.stopUpdating = false
             if (this.video_stream) {
                 this.closeLocalCamera()
                 // return '请先关闭本地摄像头'
@@ -1120,9 +1233,15 @@ class LepiCamera extends EventEmitter {
                     }
 
                     this.publishImageTimer = setInterval(() => {
-                        // ctx.drawImage(video);//绘制视频
-                        console.log('publish image', this.publishCounter)
-                        this.drawVideo()
+
+                        if (this.stopUpdating) {
+                            return
+                        } else {
+                            // ctx.drawImage(video);//绘制视频
+                            console.log('publish image', this.publishCounter)
+                            this.drawVideo()
+                        }
+
                     }, 1000.0 / (this.frequence + 1));
 
                     console.log('setInterval should call only once', this.publishImageTimer)
@@ -1162,6 +1281,20 @@ class LepiCamera extends EventEmitter {
         this._disablePreview()
     }
 
+    downloadPic(args, utils) {
+        let file_name = args.FILE_NAME
+        if (file_name == '-') {
+            file_name = (new Date()).Format("yyyy-MM-dd hh.mm.ss.S")
+        }
+
+        // 创建一个 a 标签，并设置 href 和 download 属性
+        const el = document.createElement('a');
+        // 设置 href 为图片经过 base64 编码后的字符串，默认为 png 格式
+        el.href = this.canvas.toDataURL();
+        el.download = file_name + ".png";
+        el.click()
+    }
+
     savePic(args, utils) {
         let file_name = args.FILE_NAME
         if (file_name == '-') {
@@ -1176,6 +1309,7 @@ class LepiCamera extends EventEmitter {
                     reader.onload = (e) => {
                         this.runtime.ros.saveFileData(file_name + ".png", e.target.result);
                         resolve('保存成功')
+                        this.updatePhotoList()
                     }
                     reader.readAsDataURL(blob);
 
@@ -1251,6 +1385,56 @@ class LepiCamera extends EventEmitter {
                 text: '默认',
                 value: ' '
             }]
+        }
+    }
+
+    async updatePhotoList() {
+        if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+            return '没有连接主机'
+        }
+        // let url = `http://${this.runtime.vm.LEPI_IP}:8000/explore?dir=${this.music_dir}`
+        let data = await this.runtime.ros.getFileList(this.photo_dir)
+        this.photos = data.files.filter(item => item.endsWith('.png') || item.endsWith('.jpg'))
+    }
+
+    formatPhotoList() {
+        return Menu.formatMenu2(this.photos)
+    }
+
+    photo(args) {
+        let photo = args.FILE_NAME
+        return `http://${this.runtime.vm.LEPI_IP}:8000${this.photo_dir.replace('/home/pi/Lepi_Data', '/explore')}/${photo}`
+    }
+
+    async openLocalImage() {
+        return new Promise(resolve => {
+            let upload = document.createElement('input')
+            upload.type = 'file'
+            upload.accept = "image/*"
+            upload.onchange = async () => {
+                try {
+                    let file = upload.files[0]
+                    await this.uploadFile(file)
+                    resolve('')
+                } catch (error) {
+                    console.log(error)
+                    resolve('')
+                }
+            }
+            upload.click()
+        })
+    }
+
+    async uploadFile(file) {
+        console.log(file)
+        try {
+            // const src = window.URL.createObjectURL(file)
+            const src = await toBase64(file)
+            // console.log(src)
+            await this.showPicFromSource({ ImageData: src })
+
+        } catch (error) {
+            console.log(error)
         }
     }
 

@@ -81,7 +81,7 @@ class LepiSensor extends EventEmitter {
             this.subSensorValueChange()
             this.subNineAxisValueChange()
             this.setNineAxisUpdateFrequence({ FREQUENCE: 30 })
-            this.setUpdateFrequence({ FREQUENCE: 30 })
+            this.setUpdateFrequence({ FREQUENCE: 100 })
             this.subAudioTopic()
 
         }
@@ -90,7 +90,7 @@ class LepiSensor extends EventEmitter {
             this.subSensorValueChange()
             this.subNineAxisValueChange()
             this.setNineAxisUpdateFrequence({ FREQUENCE: 30 })
-            this.setUpdateFrequence({ FREQUENCE: 30 })
+            this.setUpdateFrequence({ FREQUENCE: 100 })
             this.subAudioTopic()
         })
         this.deviceArray = []
@@ -105,6 +105,11 @@ class LepiSensor extends EventEmitter {
         // this.audioContext = audioContext
         createAudioMeter(audioContext, ![])
         this.getMicrophoneList()
+
+        this.runtime.on('PROJECT_RUN_STOP', () => {
+            this.closeMic()
+        });
+
     }
 
     /**
@@ -302,7 +307,7 @@ class LepiSensor extends EventEmitter {
                     opcode: 'sensorSetColorRGB',
                     text: formatMessage({
                         id: 'lepi.sensorSetColorRGB',
-                        default: '[PORT] 颜色传感器 设置彩灯颜色(R:[R] G:[G] B:[B])',
+                        default: '[PORT] 颜色传感器 设置彩灯颜色(R:[R] G:[G] B:[B] W:[W])',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -322,9 +327,9 @@ class LepiSensor extends EventEmitter {
                             type: ArgumentType.NUMBER,
                             defaultValue: 255
                         },
-                        C: {
+                        W: {
                             type: ArgumentType.NUMBER,
-                            defaultValue: 100
+                            defaultValue: 0
                         },
                     }
                 }, '---',
@@ -738,7 +743,7 @@ class LepiSensor extends EventEmitter {
                 frequence2: Menu.formatMenu3([formatMessage({
                     id: 'lepi.not_update',
                     default: '不更新',
-                }), '15hz', '30hz'], ['0', '15', '30']),
+                }), '15hz', '30hz', '60hz', '100hz'], ['0', '15', '30', '60', '100']),
                 audio_attr: Menu.formatMenu([formatMessage({
                     id: 'lepi.audio_db',
                     default: '分贝',
@@ -928,7 +933,7 @@ class LepiSensor extends EventEmitter {
         console.log(args.COLOR)
         let color = Color.hexToRgb(args.COLOR)
         console.log(color)
-        return this.sensorSetColorRGB({ PORT: port, R: color.r, G: color.g, B: color.b })
+        return this.sensorSetColorRGB({ PORT: port, R: color.r, G: color.g, B: color.b, W: 0 })
     }
 
     sensorSetColorRGB(args, util) {
@@ -936,20 +941,21 @@ class LepiSensor extends EventEmitter {
         let r = parseInt(args.R)
         let g = parseInt(args.G)
         let b = parseInt(args.B)
-        r = parseInt(r / 5)
-        g = parseInt(g / 20)
-        b = parseInt(b / 10)
-        if (r == 2) {
-            r = 1
-        }
-        if (g == 2) {
-            g = 1
-        }
-        if (b == 2) {
-            b = 1
-        }
+        let w = parseInt(args.W)
+        // r = parseInt(r / 5)
+        // g = parseInt(g / 20)
+        // b = parseInt(b / 10)
+        // if (r == 2) {
+        //     r = 1
+        // }
+        // if (g == 2) {
+        //     g = 1
+        // }
+        // if (b == 2) {
+        //     b = 1
+        // }
         // let c = parseInt(args.C)
-        let value = (r << 16) | (g << 8) | b
+        let value = (w << 24) | (b << 16) | (g << 8) | r
 
         console.log(r, g, b, value)
         return this.runtime.ros.setSensorValue(port, value)
@@ -1168,6 +1174,8 @@ class LepiSensor extends EventEmitter {
         }
     }
     async closeMic() {
+        this.db = 0
+        this.frequence = 0
         if (this.recording) {
             await this.audioContext.close()
             this.recording = false
@@ -1250,7 +1258,9 @@ class LepiSensor extends EventEmitter {
         const bufferSize = 4096
 
         const scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1)
-
+        if (window.navigator.userAgent.indexOf('aarch64') > 0 && window.audio_constraints) {
+            this.constraints = window.audio_constraints
+        }
         navigator.mediaDevices.getUserMedia(this.constraints).then((stream) => {
             this.recording = true
             audioContext.createMediaStreamSource(stream).connect(scriptProcessor)

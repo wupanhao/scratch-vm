@@ -54,45 +54,78 @@ class LepiLearningMachine extends EventEmitter {
                 // deviceId: { exact: deviceArray[item.value].deviceId }
             },
         };
-
-        try {
-            tf.setBackend('webgl').then((fulfilled) => {
+        if (window.navigator.userAgent.indexOf('aarch64') > 0 && window.audio_constraints) {
+            this.constraints = window.audio_constraints
+        }
+        if (false) {
+        // if ((navigator.platform != 'Win32') && location.hostname == 'localhost') {
+            const usePlatformFetch = true;
+            let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+            setWasmPath(wasm_path, usePlatformFetch);
+            tf.setBackend('wasm').then((fulfilled) => {
                 if (fulfilled) {
-                    console.log('webgl backend loaded')
+                    console.log('wasm backend loaded')
                 } else {
-                    const usePlatformFetch = true;
-                    let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
-                    setWasmPath(wasm_path, usePlatformFetch);
-                    /*
-                    setWasmPaths(
-                        {
-                            'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
-                            'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
-                            'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
-                        }
-                    )
-                    */
-                    tf.setBackend('wasm').then((fulfilled) => {
+                    tf.setBackend('cpu').then((fulfilled) => {
                         if (fulfilled) {
-                            console.log('wasm backend loaded')
+                            console.log('cpu backend loaded')
                         } else {
-                            tf.setBackend('cpu').then((fulfilled) => {
-                                if (fulfilled) {
-                                    console.log('cpu backend loaded')
-                                } else {
-                                    console.log('cpu backend not load')
-                                }
-                            });
+                            console.log('cpu backend not load')
                         }
                     });
                 }
             });
-        } catch (e) {
-            console.log(e)
+        } else {
+
+            try {
+                tf.setBackend('webgl').then((fulfilled) => {
+                    if (fulfilled) {
+                        console.log('webgl backend loaded')
+                    } else {
+                        const usePlatformFetch = true;
+                        let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+                        setWasmPath(wasm_path, usePlatformFetch);
+                        /*
+                        setWasmPaths(
+                            {
+                                'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
+                                'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
+                                'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
+                            }
+                        )
+                        */
+                        tf.setBackend('wasm').then((fulfilled) => {
+                            if (fulfilled) {
+                                console.log('wasm backend loaded')
+                            } else {
+                                tf.setBackend('cpu').then((fulfilled) => {
+                                    if (fulfilled) {
+                                        console.log('cpu backend loaded')
+                                    } else {
+                                        console.log('cpu backend not load')
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                console.log(e)
+            }
         }
         this.getMicrophoneList()
-        this.updateModelList()
-
+        this.runtime.on('PROJECT_RUN_STOP', () => {
+            console.log('PROJECT_RUN_STOP', 'stop predict')
+            this.stopPredict()
+        })
+        try {
+            this.updateModelList()
+        } catch (error) {
+            console.log(error)
+        }
+        // setInterval(() => {
+        //     this.updateModelList()
+        // }, 3000)
         // document.querySelector('body').appendChild(this.canvas)
     }
 
@@ -278,6 +311,12 @@ class LepiLearningMachine extends EventEmitter {
     }
 
     openLearningMachineAudio(args, util) {
+
+        if(window.EditorPreload && EditorPreload.openLearningMachineAudio){
+            EditorPreload.openLearningMachineAudio()
+            return
+        }
+
         let url = `../learning-machine/audio.html`
         // if (window.location.protocol == 'https:') {
         //     url = `https://innovation.huaweiapaas.com/edu/machineAudio`
@@ -291,10 +330,10 @@ class LepiLearningMachine extends EventEmitter {
         a.click()
     }
 
-    loadModel(file) {
+    loadModel(file, base64 = false) {
         return new Promise(async (resolve) => {
             try {
-                let zip = await JSZip.loadAsync(file)
+                let zip = await JSZip.loadAsync(file, { base64: base64 })
                 let model_json = await zip.file('model.json').async('Blob')
                 let weights = await zip.file('weights.bin').async('Blob')
                 let metadata = await zip.file('metadata.json').async('string')
@@ -319,6 +358,16 @@ class LepiLearningMachine extends EventEmitter {
                 console.log('warmUpModel in ' + seconds + " ms");
                 console.log(this.model)
                 this.labels = metadata.wordLabels
+
+                if (base64 == false && this.runtime.ros && this.runtime.ros.isConnected()) {
+                    var reader = new FileReader();
+                    reader.onload = async (e) => {
+                        await this.runtime.ros.saveFileData(file.name, e.target.result, '/home/pi/Lepi_Data/ros/learning_machine/audio');
+                        await this.updateModelList()
+                    }
+                    reader.readAsDataURL(file);
+                }
+
             } catch (error) {
                 console.log(error)
             } finally {
@@ -356,6 +405,9 @@ class LepiLearningMachine extends EventEmitter {
     }
 
     async updateModelList() {
+        if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+            return '没有连接主机'
+        }
         let data = await this.runtime.ros.getFileList(this.model_dir)
         this.models = data.files.filter(item => item.endsWith('.zip'))
         // this.model_dir = data.current
@@ -367,7 +419,7 @@ class LepiLearningMachine extends EventEmitter {
         // let file = '/home/pi/Lepi_Data/ros/learning_machine/image/test2.zip'
         let data = await this.runtime.ros.getFileData(`${this.model_dir}/${model_name}`)
         try {
-            await this.loadModel(data)
+            await this.loadModel(data, true)
             return Promise.resolve('加载成功')
         } catch (error) {
             console.log(error)
@@ -537,7 +589,7 @@ class LepiLearningMachine extends EventEmitter {
             probabilityThreshold: 0.75,
             invokeCallbackOnNoiseAndUnknown: true,
             overlapFactor: overlapFactor,// probably want between 0.5 and 0.75. More info in README
-            audioTrackConstraints: this.constraints
+            audioTrackConstraints: this.constraints.audio
         });
 
         // Stop the recognition in 5 seconds.

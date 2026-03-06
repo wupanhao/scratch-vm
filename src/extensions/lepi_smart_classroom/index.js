@@ -7,8 +7,9 @@ const Cast = require('../../util/cast');
 const Menu = require('../../util/menu');
 
 const axios = require('axios').default
+const mqtt = require('mqtt');
 
-const testDevice = require('./test.json')
+// const testDevice = require('./test.json')
 
 // const StageLayering = require('../../engine/stage-layering')
 const getMonitorIdForBlockWithArgs = require('../../util/get-monitor-id');
@@ -43,19 +44,22 @@ class LepiSmartClassroom extends EventEmitter {
         this.msgQueue = []
         this.client = null
 
-        this.connectToMQTTBroker()
+        // this.connectToMQTTBroker()
 
         this.course = ['1737017057672577026']
         this.user = ['1731939323598532610']
 
+        this.serverUrl = `ws://${this.runtime.vm.LEPI_IP}:8083/mqtt`
+        if (location.protocol == "https:") {
+            this.serverUrl = `wss://${this.runtime.vm.LEPI_IP}:443/mqtt`
+        }
 
-        // if (this.runtime.ros && this.runtime.ros.isConnected()) {
-        //     this.subJoyState()
-        // }
-        // this.runtime.on('LEPI_CONNECTED', () => {
-        //     console.log('LEPI_CONNECTED', 'subJoyState')
-        //     this.subJoyState()
-        // })
+        if (this.runtime.ros && this.runtime.ros.isConnected()) {
+            this.connectToMQTTBroker({ URL: this.serverUrl })
+        }
+        this.runtime.on('LEPI_CONNECTED', () => {
+            this.connectToMQTTBroker({ URL: this.serverUrl })
+        })
 
     }
 
@@ -78,21 +82,21 @@ class LepiSmartClassroom extends EventEmitter {
             blockIconURI: blockIconURI,
             // showStatusButton: true,
             blocks: [
-                {
-                    opcode: 'updateDeviceList',
-                    text: '更新课程 [COURSE] 用户[USERNAME]的设备列表',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        COURSE: {
-                            type: ArgumentType.STRING,
-                            menu: 'course'
-                        },
-                        USERNAME: {
-                            type: ArgumentType.STRING,
-                            menu: 'user'
-                        },
-                    }
-                },
+                // {
+                //     opcode: 'updateDeviceList',
+                //     text: '更新课程 [COURSE] 用户[USERNAME]的设备列表',
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         COURSE: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'course'
+                //         },
+                //         USERNAME: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'user'
+                //         },
+                //     }
+                // },
                 // {
                 //     opcode: 'updateTestDevice',
                 //     text: '更新测试设备列表',
@@ -109,6 +113,29 @@ class LepiSmartClassroom extends EventEmitter {
                 //     }
                 // },
                 {
+                    opcode: 'connectToMQTTBroker',
+                    text: '连接到网关 [URL] ID:[CLIENTID] 用户:[USERNAME] 密码:[PASSWORD]',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        URL: {
+                            type: ArgumentType.STRING,
+                            defaultValue: this.serverUrl
+                        },
+                        CLIENTID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: Math.random().toString(16).substring(2, 8)
+                        },
+                        USERNAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'test'
+                        },
+                        PASSWORD: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'test'
+                        },
+                    }
+                },
+                {
                     opcode: 'toggleDevice',
                     text: '设备[DEVICE]',
                     blockType: BlockType.COMMAND,
@@ -116,6 +143,26 @@ class LepiSmartClassroom extends EventEmitter {
                         DEVICE: {
                             type: ArgumentType.STRING,
                             menu: 'switchDevice'
+                        },
+                    }
+                }, {
+                    opcode: 'openDevice',
+                    text: '打开设备[DEVICE]',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        DEVICE: {
+                            type: ArgumentType.STRING,
+                            menu: 'switchDeviceOpen'
+                        },
+                    }
+                }, {
+                    opcode: 'closeDevice',
+                    text: '关闭设备[DEVICE]',
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        DEVICE: {
+                            type: ArgumentType.STRING,
+                            menu: 'switchDeviceClose'
                         },
                     }
                 }, {
@@ -132,6 +179,8 @@ class LepiSmartClassroom extends EventEmitter {
             menus: {
                 openClose: Menu.formatMenu3(['打开', '关闭'], ['ON', 'OFF']),
                 switchDevice: 'formatSwitchDevice',
+                switchDeviceOpen: 'formatOpenDevice',
+                switchDeviceClose: 'formatCloseDevice',
                 sensorDevice: 'formatSensorDevice',
                 user: 'formatUserList',
                 course: 'formatCourseList',
@@ -154,14 +203,14 @@ class LepiSmartClassroom extends EventEmitter {
             if (models.indexOf(dev.model.trim()) >= 0) {
                 this.commandDevice.push({
                     name: dev.alias + '-打开',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state: "ON"
                     }
                 })
                 this.commandDevice.push({
                     name: dev.alias + '-关闭',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state: "OFF"
                     }
@@ -180,17 +229,78 @@ class LepiSmartClassroom extends EventEmitter {
                     state: '',
                 })
                 this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
-                this.publishMsgTo({
-                    TOPIC: `zigbee2mqtt/${dev.alias}/get`,
-                    MSG: JSON.stringify({
-                        state: ""
-                    })
-                })
             }
         }
         return this.deviceList.map(ele => ele.alias).join(',')
     }
-    async updateTestDevice(args, util) {
+
+    addSingleSwitch(dev) {
+        this.commandDevice.push({
+            name: dev.alias + '-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias,
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state",
+            state: '',
+        })
+    }
+
+    addDoubleSwitch(dev) {
+        this.commandDevice.push({
+            name: dev.alias + '-左-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_left: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-左-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_left: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias + '-左',
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state_left",
+            state: '',
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-右-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_right: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-右-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_right: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias + '-右',
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state_right",
+            state: '',
+        })
+
+    }
+    async updateTestDevice(testDevice) {
         // let res = await axios.get(`https://risebnu.com/prod-api/iot/open/authorizedEquipmentList?userId=${args.USERNAME}&courseArrangementId=${args.COURSE}`)
         this.deviceList = testDevice.filter(dev => dev.definition).map(dev => {
             dev.model = dev.definition.model
@@ -204,46 +314,23 @@ class LepiSmartClassroom extends EventEmitter {
         let devices = []
         this.commandDevice = []
         this.sensorDevice = []
-        models = ['QBKG40LM']
-        devices = this.deviceList.filter(dev => dev.model && models.indexOf(dev.model.trim()) >= 0)
 
+        // Zigbee Model ID
+        models = ['lumi.curtain', 'QBKG40LM', 'TS0001']
+        devices = this.deviceList.filter(dev => dev.model_id && models.indexOf(dev.model_id.trim()) >= 0)
+        console.log(devices)
         for (let i = 0; i < devices.length; i++) {
             const dev = devices[i];
-            if (dev.model && models.indexOf(dev.model.trim()) >= 0) {
-                this.commandDevice.push({
-                    name: dev.alias + '-打开',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
-                    payload: {
-                        state: "ON"
-                    }
-                })
-                this.commandDevice.push({
-                    name: dev.alias + '-关闭',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
-                    payload: {
-                        state: "OFF"
-                    }
-                })
-            }
+            this.addSingleSwitch(dev)
         }
 
+        // Zigbee Model ID
+        models = ['lumi.switch.b2nacn02', 'lumi.ctrl_neutral2', 'lumi.switch.b2lacn02']
+        devices = this.deviceList.filter(dev => dev.model_id && models.indexOf(dev.model_id.trim()) >= 0)
+        console.log(devices)
         for (let i = 0; i < devices.length; i++) {
             const dev = devices[i];
-            if (dev.model && models.indexOf(dev.model.trim()) >= 0) {
-                this.sensorDevice.push({
-                    name: dev.alias,
-                    topic: `zigbee2mqtt/${dev.alias}`,
-                    key: "state",
-                    state: '',
-                })
-                this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
-                this.publishMsgTo({
-                    TOPIC: `zigbee2mqtt/${dev.alias}/get`,
-                    MSG: JSON.stringify({
-                        state: ""
-                    })
-                })
-            }
+            this.addDoubleSwitch(dev)
         }
 
         models = ["TS0003_switch_module_2"]
@@ -252,43 +339,43 @@ class LepiSmartClassroom extends EventEmitter {
             const dev = devices[i];
             if (dev.model && models.indexOf(dev.model.trim()) >= 0) {
                 this.commandDevice.push({
-                    name: dev.alias + 'l1-打开',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    name: dev.alias + '-l1-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l1: "ON"
                     }
                 })
                 this.commandDevice.push({
                     name: dev.alias + '-l1-关闭',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l1: "OFF"
                     }
                 })
                 this.commandDevice.push({
-                    name: dev.alias + 'l2-打开',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    name: dev.alias + '-l2-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l2: "ON"
                     }
                 })
                 this.commandDevice.push({
                     name: dev.alias + '-l2-关闭',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l2: "OFF"
                     }
                 })
                 this.commandDevice.push({
-                    name: dev.alias + 'l3-打开',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    name: dev.alias + '-l3-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l3: "ON"
                     }
                 })
                 this.commandDevice.push({
                     name: dev.alias + '-l3-关闭',
-                    topic: `zigbee2mqtt/${dev.ieee}/set`,
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
                     payload: {
                         state_l3: "OFF"
                     }
@@ -317,13 +404,255 @@ class LepiSmartClassroom extends EventEmitter {
                     key: "state_l3",
                     state: '',
                 })
-                this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
-                this.publishMsgTo({
-                    TOPIC: `zigbee2mqtt/${dev.alias}/get`,
-                    MSG: JSON.stringify({
-                        state_l1: ""
-                    })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+                // this.publishMsgTo({
+                //     TOPIC: `zigbee2mqtt/${dev.alias}/get`,
+                //     MSG: JSON.stringify({
+                //         state_l1: ""
+                //     })
+                // })
+            }
+        }
+
+        // |id|typeId|typeName|
+        // |--|------|--------|
+        // |1|_TZ3000_uxxehlih|紫外线杀菌灯|
+        // |2|_TZ3000_chsdwzhh|瓜果灯(GG)|
+        // |3|_TZ3000_jgmohfc8|叶菜灯(YC)|
+        // |4|_TZ3000_cvxczpc9|育苗灯(YM)|
+        // |5|_TZE284_qamkqxdr|控制模块(水泵风扇)|
+        // |6|_TZE284_1chf64gu|温湿度co2监测仪|
+        // |7|_TZ3000_o6vkzwn7|控制模块(水泵风扇)|
+        // |8|_TZ3000_kstbkt6a|水浸传感器|
+        // |9|_TZE284_otcqbbwd|液位传感器|
+        // |10|_TZE204_wgx84nor|自动配液系统|
+        // |11|_TZE284_suztgxhy|控制模块(水泵风扇)|
+        // |12|_TZ3000_5gaurvpm|单路高压开关|
+        // |13|_TZ3000_k4ej3ww2|水浸传感器|
+        // |14|_TZ3000_m5er8dsi|控制模块(水泵风扇)|
+        // 控制模块(水泵风扇)
+        let manufacturers = ["_TZE284_qamkqxdr", "_TZ3000_o6vkzwn7", "_TZ3000_m5er8dsi", "_TZE284_suztgxhy"]
+        devices = this.deviceList.filter(dev => dev.model && manufacturers.indexOf(dev.manufacturer.trim()) >= 0)
+        for (let i = 0; i < devices.length; i++) {
+            const dev = devices[i];
+            if (true) {
+                this.commandDevice.push({
+                    name: dev.alias + '-一层水泵-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l1: "ON"
+                    }
                 })
+                this.commandDevice.push({
+                    name: dev.alias + '-一层水泵-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l1: "OFF"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-二三层水泵-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l2: "ON"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-二三层水泵-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l2: "OFF"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-四层水泵-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l3: "ON"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-四层水泵-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l3: "OFF"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-风扇-打开',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l4: "ON"
+                    }
+                })
+                this.commandDevice.push({
+                    name: dev.alias + '-风扇-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}/set`,
+                    payload: {
+                        state_l4: "OFF"
+                    }
+                })
+            }
+        }
+
+        for (let i = 0; i < devices.length; i++) {
+            const dev = devices[i];
+            if (true) {
+                this.sensorDevice.push({
+                    name: dev.alias + '-一层水泵',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "state_l1",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-二三层水泵',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "state_l2",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-四层水泵',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "state_l3",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-风扇',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "state_l4",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+                // this.publishMsgTo({
+                //     TOPIC: `zigbee2mqtt/${dev.alias}/get`,
+                //     MSG: JSON.stringify({
+                //         state_l1: ""
+                //     })
+                // })
+            }
+        }
+
+        // 温湿度co2监测仪
+        manufacturers = ["_TZE284_1chf64gu"]
+        devices = this.deviceList.filter(dev => dev.model && manufacturers.indexOf(dev.manufacturer.trim()) >= 0)
+        for (let i = 0; i < devices.length; i++) {
+            const dev = devices[i];
+            if (true) {
+                this.sensorDevice.push({
+                    name: dev.alias + '-温度(℃)',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "temperature",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-湿度(%)',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "humidity",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-二氧化碳(PPM)',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "CO2",
+                    state: '',
+                })
+
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+                // this.publishMsgTo({
+                //     TOPIC: `zigbee2mqtt/${dev.alias}/get`,
+                //     MSG: JSON.stringify({
+                //         state_l1: ""
+                //     })
+                // })
+            }
+        }
+        // 传感器类
+        for (let i = 0; i < this.deviceList.length; i++) {
+            const dev = this.deviceList[i];
+            if (dev.model_id == 'lumi.magnet.acn001') {
+                this.sensorDevice.push({
+                    name: dev.alias + '-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "contact",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+
+            } else if (dev.model_id == 'lumi.magnet.ac01') {
+                this.sensorDevice.push({
+                    name: dev.alias + '-关闭',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "contact",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+
+            } else if (dev.model_id == 'lumi.weather') {
+                this.sensorDevice.push({
+                    name: dev.alias + '-温度(℃)',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "temperature",
+                    state: '',
+                })
+                this.sensorDevice.push({
+                    name: dev.alias + '-湿度(%)',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "humidity",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+
+            } else if (dev.model_id == 'lumi.motion.ac02') {
+                this.sensorDevice.push({
+                    name: dev.alias + '-有人',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "occupancy",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+            } else if (dev.model_id == 'lumi.sen_ill.agl01') {
+                this.sensorDevice.push({
+                    name: dev.alias + '-亮度',
+                    topic: `zigbee2mqtt/${dev.alias}`,
+                    key: "illuminance_lux",
+                    state: '',
+                })
+                // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+            }
+            // else if (dev.model_id == 'lumi.curtain') {
+            //     this.sensorDevice.push({
+            //         name: dev.alias + '-状态',
+            //         topic: `zigbee2mqtt/${dev.alias}`,
+            //         key: "state",
+            //         state: '',
+            //     })
+            //     // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
+            // }
+
+        }
+
+        let sensorTopicList = this.sensorDevice.map(dev => dev.topic)
+
+        this.socketUrl = `ws://${this.client.options.hostname}:8088/api`
+        if (location.protocol == "https:") {
+            this.socketUrl = `wss://${this.client.options.hostname}:443/api`
+        }
+
+        this.socket = new WebSocket(this.socketUrl)
+        console.log(sensorTopicList, this.socket)
+        this.socket.onmessage = (event) => {
+            let msg = JSON.parse(event.data);
+            let topic = `zigbee2mqtt/${msg.topic}`
+            console.log(msg, topic in sensorTopicList)
+            if (sensorTopicList.indexOf(topic) >= 0) {
+                let devs = this.sensorDevice.filter(sensor => sensor.topic == topic)
+                for (let i = 0; i < devs.length; i++) {
+                    const ele = devs[i];
+                    let state = msg.payload
+                    if (ele.key in state) {
+                        ele.state = state[ele.key]
+                    }
+                }
             }
         }
 
@@ -334,7 +663,14 @@ class LepiSmartClassroom extends EventEmitter {
     formatSwitchDevice() {
         return Menu.formatMenu2(this.commandDevice.map(ele => ele.name))
     }
-
+    formatOpenDevice() {
+        let devices = this.commandDevice.map(ele => ele.name).filter(name => name.indexOf('打开') >= 0)
+        return Menu.formatMenu3(devices.map(name => name.replace('-打开', '')), devices)
+    }
+    formatCloseDevice() {
+        let devices = this.commandDevice.map(ele => ele.name).filter(name => name.indexOf('关闭') >= 0)
+        return Menu.formatMenu3(devices.map(name => name.replace('-关闭', '')), devices)
+    }
     formatSensorDevice() {
         return Menu.formatMenu2(this.sensorDevice.map(ele => ele.name))
     }
@@ -356,6 +692,14 @@ class LepiSmartClassroom extends EventEmitter {
                 MSG: JSON.stringify(dev.payload)
             })
         }
+    }
+
+    openDevice(args) {
+        this.toggleDevice(args)
+    }
+
+    closeDevice(args) {
+        this.toggleDevice(args)
     }
 
     deviceState(args, util) {
@@ -399,11 +743,29 @@ class LepiSmartClassroom extends EventEmitter {
     }
     connectToMQTTBroker(args, util) {
 
+        if (this.client && this.client.connected) {
+            try {
+                this.client.end(true)
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        if (this.socket && this.socket.isConnected) {
+            try {
+                this.socket.close()
+            } catch (error) {
+                console.log(error)
+            }
+        }
         return new Promise(resolve => {
-            const url = 'ws://sensor.risebnu.com:8083/mqtt'
-            // const url = 'ws://192.168.50.232:8083/mqtt'
-            // const url = 'ws://broker.emqx.io:8083/mqtt'
-            // const url = 'mqtt://broker.emqx.io:1883'
+            // let url = 'ws://sensor.risebnu.com:8083/mqtt'
+            let url = 'ws://192.168.50.198:8083/mqtt'
+            if (args.URL) {
+                url = args.URL
+            }
+            // let url = 'ws://47.122.30.233:8083/mqtt'
+            // let url = 'ws://broker.emqx.io:8083/mqtt'
+            // let url = 'mqtt://broker.emqx.io:1883'
             // 创建客户端实例
             const options = {
                 // Clean session
@@ -422,15 +784,19 @@ class LepiSmartClassroom extends EventEmitter {
             const client = mqtt.connect(url, options)
             this.client = client
             // 接收消息
-            client.on('message', (topic, message) => {
+            client.on('message', async (topic, message) => {
                 // message is Buffer
                 console.log(topic, message.toString())
+
+                if (topic == 'zigbee2mqtt/bridge/devices') {
+                    await this.updateTestDevice(JSON.parse(message.toString()))
+                }
 
                 let devs = this.sensorDevice.filter(sensor => sensor.topic == topic)
                 for (let i = 0; i < devs.length; i++) {
                     const ele = devs[i];
                     let state = JSON.parse(message.toString())
-                    if (state[ele.key]) {
+                    if (ele.key in state) {
                         ele.state = state[ele.key]
                     }
                 }

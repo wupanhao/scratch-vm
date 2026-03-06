@@ -60,6 +60,9 @@ class SecurityManager {
      * @returns {Promise<string>|string} The URL to actually load.
      */
     rewriteExtensionURL (extensionURL) {
+        if (location.protocol == 'tw-editor:'){
+            return Promise.resolve(extensionURL);
+        }
         if (extensionURL.indexOf(window.location.origin) == -1) {
             let files = extensionURL.split('/')
             let file = files[files.length - 1]

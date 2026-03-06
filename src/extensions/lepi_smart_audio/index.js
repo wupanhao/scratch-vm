@@ -20,6 +20,68 @@ const menuIconURI = blockIconURI;
 
 let voicesMap = {}
 
+// 兼容不同浏览器的前缀
+const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+
+let startRecognition = async (callback) => {
+    if (SpeechRecognition) {
+        return new Promise(resolve => {
+            const recognition = new SpeechRecognition();
+
+            // 设置识别参数
+            recognition.continuous = false;  // 持续监听
+            recognition.interimResults = true;  // 显示临时结果
+            recognition.lang = 'zh-CN';  // 设置语言为中文
+
+            // 处理识别结果
+            recognition.onresult = (event) => {
+                const results = event.results;
+                let result = results[results.length - 1]
+                // let transcript = Array.from(results)
+                //     .map(result => result[0])
+                //     .map(result => result.transcript)
+                //     .join('');
+
+                // 显示临时结果（灰色）和最终结果（黑色）
+                if (result.isFinal) {
+                    console.log(result[0].transcript)
+                    resolve(result[0].transcript)
+                    if (callback) {
+                        callback(result[0].transcript)
+                    }
+                } else {
+                    console.log(result[0].transcript)
+                    // if (callback) {
+                    //     callback(result[0].transcript)
+                    // }
+                }
+            };
+
+            // 错误处理
+            recognition.onerror = (event) => {
+                console.error('识别错误:', event.error);
+                resolve('')
+            };
+
+            // 识别结束
+            recognition.onend = () => {
+                console.log('识别结束')
+                // recognition.start();
+            };
+            recognition.start();
+        })
+
+    } else {
+        return ''
+    }
+}
+
+async function delay_ms(ms = 1000) {
+    return new Promise(resolve => {
+        setTimeout(() => resolve(), ms)
+    })
+}
+
 class LepiSmartAudio extends EventEmitter {
     constructor(runtime) {
         super();
@@ -30,6 +92,7 @@ class LepiSmartAudio extends EventEmitter {
         this.runtime = runtime;
         this.commandResult = ''
         this.recognitionEnd = false;
+        this.recognitionResult = '';
 
         /*
         this.recognition = new webkitSpeechRecognition();
@@ -69,6 +132,22 @@ class LepiSmartAudio extends EventEmitter {
             this.subHotwordDetect()
             this.updateHotwordList()
         })
+
+        this.runtime.on('PROJECT_RUN_STOP', () => {
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                this.runtime.ros.stopSpeak()
+                this.toggleHotwordDetect({ ACTION: 'close' })
+            }
+            this.StopSpeak()
+        });
+
+        // var scriptEle = document.createElement("script");  //not work
+        // scriptEle.type = "text/javasctipt";
+        // // scriptEle.async = true;
+        // scriptEle.src = "static/web-assembly-vad-asr-sherpa-onnx-zh-en-jp-ko-cantonese-sense-voice/sherpa-onnx-wasm-main-vad-asr.js";
+        // var x = document.getElementsByTagName("head")[0];
+        // x.insertBefore(scriptEle, x.firstChild);
+
     }
 
     /**
@@ -172,7 +251,14 @@ class LepiSmartAudio extends EventEmitter {
                     }
                 },
                 */
-
+                {
+                    opcode: 'LocalSpeechRecognition',
+                    text: formatMessage({
+                        id: 'lepi.LocalSpeechRecognition',
+                        default: '电脑离线语音识别',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
                 {
                     opcode: 'SpeakOffline',
                     text: formatMessage({
@@ -201,6 +287,43 @@ class LepiSmartAudio extends EventEmitter {
                             defaultValue: 50
                         },
                     }
+                },
+                // {
+                //     opcode: 'SpeakOfflineWait',
+                //     text: formatMessage({
+                //         id: 'lepi.SpeakOfflineWait',
+                //         default: '电脑离线语音朗读[TEXT], 发音人[SPEAKER], 音量[VOLUME] 速度[RATE] 音调[PITCH], 等待读完',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         TEXT: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: formatMessage({
+                //                 id: 'lepi.hello',
+                //                 default: '你好',
+                //             })
+                //         }, SPEAKER: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'speakers',
+                //         }, VOLUME: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 100
+                //         }, RATE: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 10
+                //         }, PITCH: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 50
+                //         },
+                //     }
+                // },
+                {
+                    opcode: 'StopSpeak',
+                    text: formatMessage({
+                        id: 'lepi.StopSpeak',
+                        default: '停止离线语音朗读',
+                    }),
+                    blockType: BlockType.COMMAND,
                 },
                 {
                     opcode: 'SpeakEnd',
@@ -263,7 +386,7 @@ class LepiSmartAudio extends EventEmitter {
                     opcode: 'TTSOffline',
                     text: formatMessage({
                         id: 'lepi.TTSOffline',
-                        default: '离线语音合成[TEXT], [WAIT]读完',
+                        default: '离线语音朗读[TEXT], [WAIT]读完',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -491,17 +614,22 @@ class LepiSmartAudio extends EventEmitter {
     SpeechRecognitionOffline() {
         this.recognitionEnd = false
         this.recognitionResult = ''
-        this.recognitionConfidence = 0
         return new Promise(resolve => {
             this.runtime.ros.detectCommand().then(result => {
                 this.recognitionResult = result.data
-                this.recognitionEnd = true
+                if (result.data.length > 0) {
+                    this.recognitionEnd = true
+                }
                 resolve(result.data)
             })
         })
     }
     SpeechRecognitionEnd() {
-        return this.recognitionEnd
+        if (this.recognitionResult && this.recognitionResult.length > 0) {
+            return true
+        } else {
+            return false
+        }
     }
     SpeechRecognitionResult() {
         return this.recognitionResult
@@ -528,7 +656,44 @@ class LepiSmartAudio extends EventEmitter {
         return Menu.formatMenu2(Object.keys(voicesMap))
     }
 
-    SpeakOffline(args) {
+    onRecognitionResult(text) {
+        if (text && text.length > 0) {
+            this.recognitionResult = text
+            this.recognitionEnd = true
+        }
+    }
+
+    async LocalSpeechRecognition(args, util) {
+
+        if (this.runtime.ros && this.runtime.ros.isConnected() && (this.runtime.vm.ros.ip == 'localhost' || this.runtime.vm.ros.ip == '127.0.0.1')) {
+            // On Lepi
+            return this.SpeechRecognitionOffline()
+        }
+
+        // if (navigator.userAgent.indexOf("Electron") >= 0) {
+        if (false) {
+            await startAudioRecognize(this.onRecognitionResult.bind(this))
+            return Promise.resolve(this.recognitionResult)
+        } else {
+            this.recognitionEnd = false
+            this.recognitionResult = ''
+            this.recognitionResult = await startRecognition()
+            this.recognitionEnd = true
+            return this.recognitionResult
+        }
+    }
+
+    async SpeakOffline(args) {
+
+        if (this.runtime.ros && this.runtime.ros.isConnected() && (this.runtime.vm.ros.ip == 'localhost' || this.runtime.vm.ros.ip == '127.0.0.1')) {
+            // On Lepi
+            let text = args.TEXT.trim()
+            if (text.length == 0) {
+                return
+            }
+            return this.runtime.ros.TTSOffline(text)
+        }
+
         try {
             let msg = new SpeechSynthesisUtterance();
 
@@ -543,8 +708,20 @@ class LepiSmartAudio extends EventEmitter {
                 msg.voice = voicesMap[args.SPEAKER];
             }
             window.speechSynthesis.speak(msg);
+            while (window.speechSynthesis.speaking == true) {
+                await delay_ms(100)
+            }
         } catch (error) {
             console.log(error)
+        }
+
+    }
+
+    async SpeakOfflineWait(args) {
+
+        this.SpeakOffline(args)
+        while (window.speechSynthesis.speaking == true) {
+            await delay_ms(100)
         }
 
     }
@@ -552,7 +729,11 @@ class LepiSmartAudio extends EventEmitter {
     SpeakEnd() {
         return window.speechSynthesis.speaking == false
     }
-
+    StopSpeak() {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel()
+        }
+    }
 }
 
 

@@ -130,7 +130,7 @@ class LepiNfc extends EventEmitter {
                     opcode: 'readBlockDataChars',
                     text: formatMessage({
                         id: 'lepi.readBlockDataChars',
-                        default: '读RFID第[NUM]区块字符数据',
+                        default: '读RFID第[NUM]区块文本数据',
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -145,7 +145,7 @@ class LepiNfc extends EventEmitter {
                     opcode: 'writeBlockData',
                     text: formatMessage({
                         id: 'lepi.writeBlockData',
-                        default: '写RFID第[NUM]区块字符数据[DATA]',
+                        default: '写RFID第[NUM]区块文本数据[DATA]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -262,7 +262,7 @@ class LepiNfc extends EventEmitter {
                     opcode: 'bytesToChars',
                     text: formatMessage({
                         id: 'lepi.bytesToChars',
-                        default: '字节数据[DATA]转字符',
+                        default: '字节数据[DATA]转文本',
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -276,7 +276,7 @@ class LepiNfc extends EventEmitter {
                     opcode: 'charsToBytes',
                     text: formatMessage({
                         id: 'lepi.charsToBytes',
-                        default: '字符数据[DATA]转字节',
+                        default: '文本数据[DATA]转字节',
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {

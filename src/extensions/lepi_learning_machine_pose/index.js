@@ -8,6 +8,9 @@ const Menu = require('../../util/menu');
 const JSZip = require('jszip');
 const tf = require('@tensorflow/tfjs');
 const tmPose = require('@teachablemachine/pose');
+// modify dist/custom-posenet.js loadPoseNet posenet.load({
+// let url = 'https://storage.googleapis.com/tfjs-models/savedmodel/posenet/mobilenet/float/075/model-stride16.json'
+// modelUrl: config.modelUrl ? config.modelUrl : url,
 const { THREAD_STEP_INTERVAL } = require('../../engine/runtime');
 const JSZipUtils = require('jszip-utils');
 const { parse } = require('path');
@@ -74,52 +77,76 @@ class LepiLearningMachinePose extends EventEmitter {
         this.canvas = document.createElement('canvas')
         this.canvas.width = IMAGE_SIZE
         this.canvas.height = IMAGE_SIZE
-        // this.canvas.style.display = 'absolute'
+        this.canvas.style.display = 'none'
         // this.canvas.style.top = '0'
         // this.canvas.style.left = '0'
         this.canvas.id = 'lepi_pose'
         document.querySelector('body').appendChild(this.canvas)
         this.pose = null
-        try {
-            tf.setBackend('webgl').then((fulfilled) => {
+        if (false) {
+        // if ((navigator.platform != 'Win32') && location.hostname == 'localhost') {
+            const usePlatformFetch = true;
+            let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+            setWasmPath(wasm_path, usePlatformFetch);
+            tf.setBackend('wasm').then((fulfilled) => {
                 if (fulfilled) {
-                    console.log('webgl backend loaded')
+                    console.log('wasm backend loaded')
                 } else {
-                    const usePlatformFetch = true;
-                    let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
-                    setWasmPath(wasm_path, usePlatformFetch);
-                    /*
-                    setWasmPaths(
-                        {
-                            'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
-                            'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
-                            'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
-                        }
-                    )
-                    */
-                    tf.setBackend('wasm').then((fulfilled) => {
+                    tf.setBackend('cpu').then((fulfilled) => {
                         if (fulfilled) {
-                            console.log('wasm backend loaded')
+                            console.log('cpu backend loaded')
                         } else {
-                            tf.setBackend('cpu').then((fulfilled) => {
-                                if (fulfilled) {
-                                    console.log('cpu backend loaded')
-                                } else {
-                                    console.log('cpu backend not load')
-                                }
-                            });
+                            console.log('cpu backend not load')
                         }
                     });
                 }
             });
-        } catch (e) {
-            console.log(e)
+        } else {
+
+            try {
+                tf.setBackend('webgl').then((fulfilled) => {
+                    if (fulfilled) {
+                        console.log('webgl backend loaded')
+                    } else {
+                        const usePlatformFetch = true;
+                        let wasm_path = 'node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm'
+                        setWasmPath(wasm_path, usePlatformFetch);
+                        /*
+                        setWasmPaths(
+                            {
+                                'tfjs-backend-wasm.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm',
+                                'tfjs-backend-wasm-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-simd.wasm',
+                                'tfjs-backend-wasm-threaded-simd.wasm': '/learning-machine/node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm-threaded-simd.wasm'
+                            }
+                        )
+                        */
+                        tf.setBackend('wasm').then((fulfilled) => {
+                            if (fulfilled) {
+                                console.log('wasm backend loaded')
+                            } else {
+                                tf.setBackend('cpu').then((fulfilled) => {
+                                    if (fulfilled) {
+                                        console.log('cpu backend loaded')
+                                    } else {
+                                        console.log('cpu backend not load')
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                console.log(e)
+            }
         }
 
 
         try {
             this.setSize({ W: 360, H: 360 })
             this.updateModelList()
+            // setInterval(() => {
+            //     this.updateModelList()
+            // }, 3000)
         } catch (error) {
             console.log(error)
         }
@@ -163,7 +190,7 @@ class LepiLearningMachinePose extends EventEmitter {
                     opcode: 'loadPoseModel',
                     text: formatMessage({
                         id: 'lepi.loadPoseModel',
-                        default: '加载人体关键点模型',
+                        default: '加载人体特征点模型',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -255,7 +282,7 @@ class LepiLearningMachinePose extends EventEmitter {
                     opcode: 'detectKeyPoints',
                     text: formatMessage({
                         id: 'lepi.detectKeyPoints',
-                        default: '进行关键点识别',
+                        default: '进行特征点识别',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -263,14 +290,14 @@ class LepiLearningMachinePose extends EventEmitter {
                     opcode: 'detectedKeyPoints',
                     text: formatMessage({
                         id: 'lepi.detectedKeyPoints',
-                        default: '识别到关键点 ?',
+                        default: '识别到特征点 ?',
                     }),
                     blockType: BlockType.BOOLEAN,
                 }, {
                     opcode: 'keyPointsData',
                     text: formatMessage({
                         id: 'lepi.keyPointsData',
-                        default: '[KEYPOINT] 关键点 [DATA]',
+                        default: '[KEYPOINT] 特征点 [DATA]',
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -318,7 +345,7 @@ class LepiLearningMachinePose extends EventEmitter {
                     opcode: 'keyPointsScore',
                     text: formatMessage({
                         id: 'lepi.keyPointsScore',
-                        default: '关键点识别信度',
+                        default: '特征点识别信度',
                     }),
                     blockType: BlockType.REPORTER,
                 },
@@ -412,6 +439,12 @@ class LepiLearningMachinePose extends EventEmitter {
     }
 
     openLearningMachinePose(args, util) {
+
+        if(window.EditorPreload && EditorPreload.openLearningMachinePose){
+            EditorPreload.openLearningMachinePose()
+            return
+        }
+
         let url = `../learning-machine/pose.html`
         // if (window.location.protocol == 'https:') {
         //     url = `https://innovation.huaweiapaas.com/edu/machinePose`
@@ -426,22 +459,27 @@ class LepiLearningMachinePose extends EventEmitter {
     }
 
     async loadPoseModel() {
+        let url = 'https://storage.googleapis.com/tfjs-models/savedmodel/posenet/mobilenet/float/075/model-stride16.json'
+        if (window.location.port == '20110' || window.location.port == '8601' || window.location.port == '8000' || window.location.href.indexOf('resources/app/index.html') > 0) {
+            url = DEFAULT_CHECK_POINT_URL_POSE
+        }
+        console.log(url, 0)
         this.model = await tmPose.createTeachable(
             {
                 tfjsVersion: tf.version.tfjs,
                 tmVersion: tmPose.version,
                 modelSettings: {
-                    modelUrl: DEFAULT_CHECK_POINT_URL_POSE
+                    modelUrl: url
                 }
             },
         )
         return '加载成功'
     }
 
-    loadModel(file) {
+    loadModel(file, base64 = false) {
         return new Promise(async (resolve) => {
             try {
-                let zip = await JSZip.loadAsync(file)
+                let zip = await JSZip.loadAsync(file, { base64: base64 })
                 let model_json = await zip.file('model.json').async('Blob')
                 let weights = await zip.file('weights.bin').async('Blob')
                 let metadata = await zip.file('metadata.json').async('Blob')
@@ -449,6 +487,14 @@ class LepiLearningMachinePose extends EventEmitter {
                 this.model = await tmPose.loadFromFiles(new File([model_json], 'model.json'), new File([weights], 'weights.bin'), new File([metadata], 'metadata.json'))
                 console.log(this.model)
                 this.labels = this.model._metadata.labels
+                if (base64 == false && this.runtime.ros && this.runtime.ros.isConnected()) {
+                    var reader = new FileReader();
+                    reader.onload = async (e) => {
+                        await this.runtime.ros.saveFileData(file.name, e.target.result, '/home/pi/Lepi_Data/ros/learning_machine/pose');
+                        await this.updateModelList()
+                    }
+                    reader.readAsDataURL(file);
+                }
             } catch (error) {
                 console.log(error)
             } finally {
@@ -485,6 +531,9 @@ class LepiLearningMachinePose extends EventEmitter {
     }
 
     async updateModelList() {
+        if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+            return '没有连接主机'
+        }
         // let url = `http://${this.runtime.vm.LEPI_IP}:8000/explore?dir=${this.model_dir}`
         let data = await this.runtime.ros.getFileList(this.model_dir)
         this.models = data.files.filter(item => item.endsWith('.zip'))
@@ -497,7 +546,7 @@ class LepiLearningMachinePose extends EventEmitter {
         // let file = '/home/pi/Lepi_Data/ros/learning_machine/image/test2.zip'
         let data = await this.runtime.ros.getFileData(`${this.model_dir}/${model_name}`)
         try {
-            await this.loadModel(data)
+            await this.loadModel(data, true)
             return Promise.resolve('加载成功')
         } catch (error) {
             console.log(error)
@@ -529,13 +578,13 @@ class LepiLearningMachinePose extends EventEmitter {
     async predict(args, util) {
         let img_src = document.querySelector('#lepi_camera')
         if (img_src) {
-            let ctx = this.canvas.getContext('2d')
-            let x = this.runtime.rect[0]
-            let y = this.runtime.rect[1]
-            let w = this.runtime.rect[2]
-            let h = this.runtime.rect[3]
-            ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
-            const { pose, posenetOutput } = await this.model.estimatePose(this.canvas)
+            // let ctx = this.canvas.getContext('2d')
+            // let x = this.runtime.rect[0]
+            // let y = this.runtime.rect[1]
+            // let w = this.runtime.rect[2]
+            // let h = this.runtime.rect[3]
+            // ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
+            const { pose, posenetOutput } = await this.model.estimatePose(img_src)
             this.pose = pose
             let result = await this.model.predict(posenetOutput)
             // let result = await this.predict_tiny(this.canvas)
@@ -634,19 +683,20 @@ class LepiLearningMachinePose extends EventEmitter {
     async detectKeyPoints() {
         let img_src = document.querySelector('#lepi_camera')
         if (img_src) {
-            let ctx = this.canvas.getContext('2d')
-            let x = this.runtime.rect[0]
-            let y = this.runtime.rect[1]
-            let w = this.runtime.rect[2]
-            let h = this.runtime.rect[3]
-            ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
-            const { pose, posenetOutput } = await this.model.estimatePose(this.canvas)
+            // let ctx = this.canvas.getContext('2d')
+            // let x = this.runtime.rect[0]
+            // let y = this.runtime.rect[1]
+            // let w = this.runtime.rect[2]
+            // let h = this.runtime.rect[3]
+            // ctx.drawImage(img_src, x, y, w, h, 0, 0, IMAGE_SIZE, IMAGE_SIZE)
+            // const { pose, posenetOutput } = await this.model.estimatePose(this.canvas)
+            const { pose, posenetOutput } = await this.model.estimatePose(img_src)
             console.log(pose)
             this.pose = pose
             if (this.pose) {
-                return '识别到关键点'
+                return '识别到特征点'
             } else {
-                return '未识别到关键点'
+                return '未识别到特征点'
             }
         } else {
             return '没有摄像头图像'

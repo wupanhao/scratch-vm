@@ -35,17 +35,22 @@ class ros_client {
       }, 3000)
       return
     }
-    if (this.btnListener != null) {
-      this.btnListener.unsubscribe();
-    }
-    var btnListener = new ROSLIB.Topic({
-      ros: ros,
-      name: '/ubiquityrobot/pi_driver_node/button_event',
-      messageType: 'pi_driver/ButtonEvent'
-    });
 
     ros.on('connection', () => {
       console.log('Connected to websocket server.');
+
+      if (this.btnListener != null) {
+        this.btnListener.unsubscribe();
+      }
+      var btnListener = new ROSLIB.Topic({
+        ros: ros,
+        name: '/ubiquityrobot/pi_driver_node/button_event',
+        messageType: 'pi_driver/ButtonEvent'
+      });
+      this.btnListener = btnListener
+
+      fetch(`http://${this.ip}:8000/rosNode/start_pi_node`).then(console.log)
+        .catch(console.log)
       if (this.btnHandler) {
         console.log('subscribe to button topic.');
         btnListener.subscribe(this.btnHandler);
@@ -82,7 +87,8 @@ class ros_client {
     });
 
     this.ros = ros
-    this.btnListener = btnListener
+    this.getPowerState().then(console.log)
+
   }
   isConnected() {
     return this.ros && this.ros.isConnected
@@ -249,25 +255,18 @@ class ros_client {
       value: speed
     });
     topic.publish(msg);
-    /*
-    return new Promise((resolve) => {
-      var client = new ROSLIB.Service({
-        ros: this.ros,
-        name: ROS_NAMESPACE + 'pi_driver_node/motor_set_speed',
-        serviceType: 'pi_driver/SetInt32'
-      });
+  }
+  motorsSetSpeed(data) {
+    var topic = new ROSLIB.Topic({
+      ros: this.ros,
+      name: ROS_NAMESPACE + 'pi_driver_node/motors_set_speed',
+      messageType: 'std_msgs/String'
+    });
 
-      var request = new ROSLIB.ServiceRequest({
-        port: port,
-        value: speed
-      });
-
-      client.callService(request, (result) => {
-        console.log(result)
-        resolve()
-      });
-    })
-    */
+    var msg = new ROSLIB.Message({
+      data
+    });
+    topic.publish(msg);
   }
 
   motorSetPosition(port, position) {
@@ -887,6 +886,37 @@ class ros_client {
       });
     })
   }
+  detectColorBlocks(params) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'line_detector_node/detect_color_shape',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest(params);
+      client.callService(request, (result) => {
+        console.log(result)
+        resolve(result)
+      });
+    })
+  }
+
+  setMinMaxErea(params) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'line_detector_node/set_min_max_erea',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest(params);
+      client.callService(request, (result) => {
+        console.log(result)
+        resolve(result)
+      });
+    })
+  }
 
   setColorThreshold(params) {
     return new Promise((resolve) => {
@@ -895,7 +925,7 @@ class ros_client {
         name: ROS_NAMESPACE + 'line_detector_node/set_color_threshold',
         serviceType: 'pi_cam/SetColorThreshold'
       });
-
+      console.log(params)
       var request = new ROSLIB.ServiceRequest(params);
       client.callService(request, (result) => {
         console.log(result)
@@ -933,6 +963,21 @@ class ros_client {
       client.callService(request, (result) => {
         console.log(result)
         resolve(result)
+      });
+    })
+  }
+  detectColorThreshold(x, y, r, scale) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'line_detector_node/detect_color_threshold',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data: JSON.stringify({ x, y, r, scale }) });
+      client.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
       });
     })
   }
@@ -1787,6 +1832,28 @@ class ros_client {
         ros: this.ros,
         name: '/ubiquityrobot/smart_audio_node/tts_offline',
         serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        data: param
+      });
+
+      // Send the request
+      service.callService(request, (result) => {
+        resolve()
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  stopSpeak(param = '') {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/smart_audio_node/stop_speak',
+        serviceType: 'pi_driver/SetString'
       });
 
       var request = new ROSLIB.ServiceRequest({
@@ -2766,7 +2833,7 @@ class ros_client {
     }
   }
 
-  subAudioTopic(callback){
+  subAudioTopic(callback) {
     var msgListener = new ROSLIB.Topic({
       ros: this.ros,
       name: '/ubiquityrobot/pi_driver_node/audio_buffer',
@@ -2775,7 +2842,7 @@ class ros_client {
     msgListener.subscribe(callback)
   }
 
-  openMic(){
+  openMic() {
     return new Promise(resolve => {
       // Create a Service client with details of the service's name and service type.
       var service = new ROSLIB.Service({
@@ -2797,7 +2864,7 @@ class ros_client {
   }
 
 
-  closeMic(){
+  closeMic() {
     return new Promise(resolve => {
       // Create a Service client with details of the service's name and service type.
       var service = new ROSLIB.Service({
@@ -2817,6 +2884,330 @@ class ros_client {
       });
     })
   }
+  predictFaceEmotion() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/face_recognizer_node/detect_face_emotion',
+        serviceType: 'pi_cam/GetFaceDetections'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.detections)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  predictFaceAge() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/face_recognizer_node/detect_face_age',
+        serviceType: 'pi_cam/GetFaceDetections'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.detections)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  predictFaceGender() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/face_recognizer_node/detect_face_gender',
+        serviceType: 'pi_cam/GetFaceDetections'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.detections)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  analyzeFace() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/face_recognizer_node/analyze_face',
+        serviceType: 'pi_cam/GetFaceDetections'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.detections)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  disableSensorPort(port) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/pi_driver_node/disable_sensor_port',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data: port });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  enableSensorPort(port) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/pi_driver_node/enable_sensor_port',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data: port });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  scanDevices() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_scan',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  connectToDevice(address) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_connect',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data: address });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  isDeviceConnected() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_is_connected',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data == 'true')
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  disconnectDevice() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_disconnect',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  discoverServices() {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_discover_services',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  readCharacteristic(data) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_read_characteristic',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  writeCharacteristic(data) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_write_characteristic',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  bleSubscribeNotification(data) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_subscribe_notification',
+        serviceType: 'pi_driver/GetString'
+
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+  bleSubscribeNotificationTopic(callback) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var listener = new ROSLIB.Topic({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_notifications',
+        messageType: 'std_msgs/String'
+      });
+
+      listener.subscribe(callback)
+      resolve()
+    })
+  }
+
+  bleUnsubscribeNotification(data) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/ble_ros_node/ble_unsubscribe_notification',
+        serviceType: 'pi_driver/GetString'
+
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
 }
+
 
 module.exports = ros_client

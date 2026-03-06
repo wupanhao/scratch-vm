@@ -3,7 +3,7 @@ const EventEmitter = require('events');
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const formatMessage = require('format-message');
-// const Cast = require('../../util/cast');
+const Cast = require('../../util/cast');
 const Menu = require('../../util/menu');
 // const StageLayering = require('../../engine/stage-layering')
 const getMonitorIdForBlockWithArgs = require('../../util/get-monitor-id');
@@ -33,6 +33,7 @@ class LepiHttp extends EventEmitter {
         this.response = null
         this.runtime = runtime;
         this.payload = {}
+        this.headers = {}
         /*
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
         }
@@ -83,6 +84,38 @@ class LepiHttp extends EventEmitter {
                     }
                 },
                 */
+                {
+                    opcode: "setHeaderData",
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "Content-Type",
+                        },
+                        VALUE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "application/json",
+                        },
+                    },
+                    text: formatMessage({
+                        id: 'lepi.setHeaderData',
+                        default: '设置请求头[NAME]为 [VALUE]',
+                    }),
+                },
+                {
+                    opcode: "setHeaderJSON",
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        JSON: {
+                            type: ArgumentType.STRING,
+                            defaultValue: `{"Content-Type": "text/plain"}`,
+                        },
+                    },
+                    text: formatMessage({
+                        id: 'lepi.setHeaderJSON',
+                        default: '设置请求头为 [JSON]',
+                    }),
+                },
                 {
                     opcode: 'sendJsonRequest',
                     text: formatMessage({
@@ -144,6 +177,7 @@ class LepiHttp extends EventEmitter {
                     }),
                     blockType: BlockType.REPORTER,
                 },
+
                 {
                     opcode: 'requestSuccess',
                     text: formatMessage({
@@ -184,7 +218,24 @@ class LepiHttp extends EventEmitter {
 
         };
     }
+    setHeaderData(args) {
+        const key = Cast.toString(args.NAME);
+        const value = Cast.toString(args.VALUE);
+        this.headers[key] = value;
+    }
 
+    setHeaderJSON(args) {
+        const json = Cast.toString(args.json);
+        let object;
+        // ignore invalid data
+        try {
+            object = JSON.parse(json);
+        } catch {
+            return;
+        }
+        if (typeof object !== "object") return;
+        this.headers = object;
+    }
     sendJsonRequest(args, util) {
         let method = args.METHOD
         let url = args.URL
@@ -192,7 +243,7 @@ class LepiHttp extends EventEmitter {
             let data = JSON.parse(args.DATA)
             return new Promise(resolve => {
                 if (method == 'GET') {
-                    axios.get(encodeURI(url), { params: data }).then(res => {
+                    axios.get(encodeURI(url), { params: data, headers: this.headers }).then(res => {
                         this.response = res.data
                         resolve(res.data)
                     }).catch(error => {
@@ -201,7 +252,7 @@ class LepiHttp extends EventEmitter {
                         resolve('请求出错')
                     })
                 } else if (method == 'POST') {
-                    axios.post(encodeURI(url), JSON.stringify(data)).then(res => {
+                    axios.post(encodeURI(url), data, { headers: this.headers }).then(res => {
                         this.response = res.data
                         try {
                             resolve(JSON.stringify(res.data))
@@ -218,7 +269,7 @@ class LepiHttp extends EventEmitter {
         }
 
         return new Promise(resolve => {
-            this.runtime.ros.proxyPost(encodeURI(url), method, args.DATA).then(data => {
+            this.runtime.ros.proxyPost(encodeURI(url), JSON.stringify({ method, headers: this.headers }), args.DATA).then(data => {
                 this.response = data
                 resolve(data)
             }).catch(error => {

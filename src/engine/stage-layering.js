@@ -11,6 +11,10 @@ class StageLayering {
         return 'pen';
     }
 
+    static get DRAW_LAYER () {
+        return 'draw';
+    }
+
     static get SPRITE_LAYER () {
         return 'sprite';
     }
@@ -21,6 +25,7 @@ class StageLayering {
             StageLayering.BACKGROUND_LAYER,
             StageLayering.VIDEO_LAYER,
             StageLayering.PEN_LAYER,
+            StageLayering.DRAW_LAYER,
             StageLayering.SPRITE_LAYER
         ];
     }

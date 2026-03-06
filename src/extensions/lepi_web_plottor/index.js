@@ -488,7 +488,7 @@ class LepiWebPlottor extends EventEmitter {
     updatePlottor() {
         const { width, height } = this.runtime.renderer.canvas
         if (this.canvas.width != width || this.canvas.height != height) {
-            console.log('update')
+            // console.log('update')
             plottor.update(width, height)
             this.drawStamp(this.canvas)
         }

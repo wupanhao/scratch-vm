@@ -99,6 +99,9 @@ const node_name_maps = {
     }), "/ubiquityrobot/rfid_node": () => formatMessage({
         id: 'lepi.rfid',
         default: 'RFID读卡器',
+    }), "/ubiquityrobot/ble_ros_node": () => formatMessage({
+        id: 'lepi.ble_ros',
+        default: '蓝牙通信',
     }),
     "/ubiquityrobot/joystick_node": () => formatMessage({
         id: 'lepi.joystick',
@@ -126,6 +129,96 @@ function getUrlPrefix(href) {
         return ''
     }
 }
+
+// 下载文件函数
+async function downloadFile(fileUrl) {
+
+    try {
+
+        let blob = await fetchBlob(fileUrl)
+
+        // 创建下载链接
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // 从URL中提取文件名
+        const filename = getFilenameFromUrl(fileUrl);
+        a.download = filename || 'downloaded-file';
+
+        // 触发下载
+        document.body.appendChild(a);
+        a.click();
+
+        // 清理
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // 显示成功状态
+        console.log(`文件 "${filename}" 下载成功！`, 'success');
+
+    } catch (error) {
+        console.log(`下载失败: ${error.message}`, 'error');
+    } finally {
+    }
+}
+
+// 从URL中提取文件名
+function getFilenameFromUrl(url) {
+    try {
+        let base64 = url.substring(0, 50)
+        if (base64.indexOf('data:') == 0) {
+            let arr = base64.split(',')
+            let fileType = arr[0].match(/:(.*?);/)[1]
+            return arr[1].substring(0, 6) + Math.random().toString(36).substring(2) + '.' + fileType.split('/')[1]
+        }
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        return pathname.substring(pathname.lastIndexOf('/') + 1) || 'downloaded-file';
+    } catch (e) {
+        return 'downloaded-file';
+    }
+}
+
+async function fetchBlob(fileUrl) {
+    // 发起fetch请求
+    const response = await fetch(fileUrl);
+
+    if (!response.ok) {
+        throw new Error(`HTTP错误! 状态: ${response.status}`);
+    }
+
+    // 获取内容长度用于计算进度
+    const contentLength = response.headers.get('content-length');
+    const total = parseInt(contentLength, 10);
+
+    // 获取响应体
+    const reader = response.body.getReader();
+    let receivedLength = 0;
+    let chunks = [];
+
+    while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+            break;
+        }
+
+        chunks.push(value);
+        receivedLength += value.length;
+
+        // 更新进度条
+        if (total) {
+            const percent = Math.round((receivedLength / total) * 100);
+            console.log(`下载进度${percent}%`)
+        }
+    }
+
+    // 合并所有chunks
+    return new Blob(chunks);
+}
+
+
 
 /**
  * Scratch 3.0 blocks to interact with a Lepi peripheral.
@@ -156,7 +249,7 @@ class Scratch3LepiBlocks {
          * @type {Runtime}
          */
         this.runtime = runtime;
-
+        console.log(runtime)
         this.LEPI_NAME = 'lepi.local'
         this.LEPI_IP = 'localhost'
         const extensionId = 'lepi'
@@ -221,7 +314,7 @@ class Scratch3LepiBlocks {
      * @param {number} id - the id of the peripheral to connect to.
      */
     connect(ip, onSuccess, onFailure) {
-        console.log(ip)
+        console.log('connect scratch3_lepi', ip)
         this.LEPI_IP = ip
 
         this.runtime.vm.connect(ip, () => {
@@ -248,7 +341,7 @@ class Scratch3LepiBlocks {
             try {
                 window.LEPI_IP = ip
             } catch (error) {
-                console.log(ip)
+                console.log(error, ip)
             }
         }, onFailure)
 
@@ -300,7 +393,7 @@ class Scratch3LepiBlocks {
             connected = this._ble.isConnected();
         }
         connected = this.runtime.ros && this.runtime.ros.isConnected()
-        return connected;
+        return connected == true;
     }
 
 
@@ -333,6 +426,96 @@ class Scratch3LepiBlocks {
                     }
                 },
                 {
+                    opcode: 'saveFileToComputer',
+                    text: formatMessage({
+                        id: 'lepi.saveFileToComputer',
+                        default: '保存文件 [FILE]到电脑',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        FILE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: ''
+                        },
+                    }
+                },
+                {
+                    opcode: 'saveFileToLepi',
+                    text: formatMessage({
+                        id: 'lepi.saveFileToLepi',
+                        default: '保存文件 [FILE]到乐派, 目录[DIR]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        FILE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: ''
+                        },
+                        DIR: {
+                            type: ArgumentType.STRING,
+                            menu: 'dirs'
+                        },
+                    }
+                },
+                '---',
+                {
+                    opcode: 'runBigScreenProject',
+                    text: formatMessage({
+                        id: 'lepi.runBigScreenProject',
+                        default: '大屏运行程序 [FILE]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        FILE: {
+                            type: ArgumentType.STRING,
+                            menu: 'lepiProjects'
+                        },
+                    }
+                },
+                {
+                    opcode: 'runLedSimulator',
+                    text: formatMessage({
+                        id: 'lepi.runLedSimulator',
+                        default: '大屏运行模拟点阵屏程序',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        URL: {
+                            type: ArgumentType.STRING,
+                            defaultValue: `http://localhost:8000/app/static/apps/led_simulator/screen.html`
+                        },
+                    }
+                },
+                {
+                    opcode: 'loadWebApp',
+                    text: formatMessage({
+                        id: 'lepi.loadWebApp',
+                        default: '大屏加载网页 [URL]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        URL: {
+                            type: ArgumentType.STRING,
+                            defaultValue: `http://localhost:8000/app`
+                        },
+                    }
+                },
+                '---',
+                {
+                    opcode: 'batteryInfo',
+                    text: formatMessage({
+                        id: 'lepi.batteryInfo',
+                        default: '电池[BAT]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        BAT: {
+                            type: ArgumentType.STRING,
+                            menu: 'batteryList'
+                        },
+                    }
+                },
+                {
                     opcode: 'setLed',
                     text: formatMessage({
                         id: 'lepi.setLed',
@@ -349,7 +532,7 @@ class Scratch3LepiBlocks {
                             menu: 'colorList'
                         },
                     }
-                },{
+                }, {
                     opcode: 'closeFan',
                     text: formatMessage({
                         id: 'lepi.setFan',
@@ -398,20 +581,20 @@ class Scratch3LepiBlocks {
                     arguments: {
                     }
                 },
-                {
-                    opcode: 'openVNC',
-                    text: formatMessage({
-                        id: 'lepi.openVNC',
-                        default: '打开乐派桌面, 端口[PORT]',
-                    }),
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        PORT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: '6080'
-                        }
-                    }
-                },
+                // {
+                //     opcode: 'openVNC',
+                //     text: formatMessage({
+                //         id: 'lepi.openVNC',
+                //         default: '打开乐派桌面, 端口[PORT]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         PORT: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: '6080'
+                //         }
+                //     }
+                // },
                 {
                     opcode: 'openVSCode',
                     text: formatMessage({
@@ -440,16 +623,16 @@ class Scratch3LepiBlocks {
                         }
                     }
                 },
-                {
-                    opcode: 'openCollaborationSheet',
-                    text: formatMessage({
-                        id: 'lepi.openCollaborationSheet',
-                        default: '打开协作表单',
-                    }),
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                    }
-                },
+                // {
+                //     opcode: 'openCollaborationSheet',
+                //     text: formatMessage({
+                //         id: 'lepi.openCollaborationSheet',
+                //         default: '打开协作表单',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //     }
+                // },
                 {
                     opcode: 'openAudioAnalyzer',
                     text: formatMessage({
@@ -470,33 +653,47 @@ class Scratch3LepiBlocks {
                     arguments: {
                     }
                 },
-                {
-                    opcode: 'openURL',
-                    text: formatMessage({
-                        id: 'lepi.openURL',
-                        default: '[PROXY] 打开网页[URL]',
-                    }),
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        URL: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'http://www.baidu.com'
-                        },
-                        PROXY: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 0,
-                            menu: 'proxy'
-                        },
-                    }
-                },
+                // {
+                //     opcode: 'openURL',
+                //     text: formatMessage({
+                //         id: 'lepi.openURL',
+                //         default: '[PROXY] 打开网页[URL]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         URL: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 'http://www.baidu.com'
+                //         },
+                //         PROXY: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 0,
+                //             menu: 'proxy'
+                //         },
+                //     }
+                // },
+                // {
+                //     opcode: 'proxyURL',
+                //     text: formatMessage({
+                //         id: 'lepi.proxyURL',
+                //         default: '跨域请求[URL]',
+                //     }),
+                //     blockType: BlockType.REPORTER,
+                //     arguments: {
+                //         URL: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: 'http://www.baidu.com'
+                //         },
+                //     }
+                // },
                 '---',
                 {
                     opcode: 'getLaunchedNodes',
                     text: formatMessage({
                         id: 'lepi.getLaunchedNodes',
-                        default: '更新扩展模块信息',
+                        default: '已启动扩展模块',
                     }),
-                    blockType: BlockType.COMMAND,
+                    blockType: BlockType.REPORTER,
                 }, {
                     opcode: 'launchNode',
                     text: formatMessage({
@@ -526,38 +723,60 @@ class Scratch3LepiBlocks {
                 },
                 '---',
                 {
-                    opcode: 'toggleTerminal',
+                    opcode: 'isConnected',
                     text: formatMessage({
-                        id: 'lepi.toggleTerminal',
-                        default: '[TOGGLE] 命令行窗口',
+                        id: 'lepi.isConnected',
+                        default: '已连接上主机?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                }, {
+                    opcode: 'connectToLepi',
+                    text: formatMessage({
+                        id: 'lepi.connectToLepi',
+                        default: '连接到乐派主机[IP]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
-                        TOGGLE: {
+                        IP: {
                             type: ArgumentType.STRING,
-                            menu: 'toggle'
+                            defaultValue: 'lepi.local'
                         }
                     }
                 },
-                {
-                    opcode: 'inputString',
-                    text: formatMessage({
-                        id: 'lepi.inputString',
-                        default: '输入 [INPUT] [Enter]',
-                    }),
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        INPUT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: ' '
-                        },
-                        Enter: {
-                            type: ArgumentType.STRING,
-                            menu: 'toggleEnter',
-                            defaultValue: 1
-                        }
-                    }
-                },
+                // '---',
+                // {
+                //     opcode: 'toggleTerminal',
+                //     text: formatMessage({
+                //         id: 'lepi.toggleTerminal',
+                //         default: '[TOGGLE] 命令行窗口',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         TOGGLE: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'toggle'
+                //         }
+                //     }
+                // },
+                // {
+                //     opcode: 'inputString',
+                //     text: formatMessage({
+                //         id: 'lepi.inputString',
+                //         default: '输入 [INPUT] [Enter]',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                //     arguments: {
+                //         INPUT: {
+                //             type: ArgumentType.STRING,
+                //             defaultValue: ' '
+                //         },
+                //         Enter: {
+                //             type: ArgumentType.STRING,
+                //             menu: 'toggleEnter',
+                //             defaultValue: 1
+                //         }
+                //     }
+                // },
                 /*
                 '---',
                 {
@@ -694,6 +913,8 @@ class Scratch3LepiBlocks {
                     default: '白色',
                 })]),
                 proxy: Menu.formatMenu(['不使用代理', '使用代理']),
+                batteryList: Menu.formatMenu(['汇总', '电压', '电流', '功率', '电量', '充电状态']),
+                dirs: Menu.formatMenu2(['Photo', 'Music', 'Recording', 'Download'])
                 // windows: Menu.formatMenu(['全屏', '上半屏', '下半屏']),
                 // sharedVariablesMenu: 'sharedVariablesMenu2',
             },
@@ -763,6 +984,11 @@ class Scratch3LepiBlocks {
     async updateLepiProjects() {
         let data = await this.runtime.ros.getFileList(this.file_dir)
         this.files = data.files.filter(item => item.endsWith('.sb3'))
+        for (let i = 0; i < data.dirs.length; i++) {
+            const dir = data.dirs[i];
+            let sub_data = await this.runtime.ros.getFileList(this.file_dir + '/' + dir)
+            this.files = this.files.concat(sub_data.files.filter(item => item.endsWith('.sb3')).map(file => `${dir}/${file}`))
+        }
         // this.model_dir = data.current
         return this.files.join(',')
     }
@@ -904,6 +1130,16 @@ class Scratch3LepiBlocks {
         return Promise.resolve(res)
     }
 
+    async connectToLepi(args, util) {
+        return new Promise(resolve => {
+            this.connect(args.IP, () => {
+                resolve('连接成功')
+            }, () => {
+                resolve('连接失败')
+            })
+        })
+    }
+
     toggleTerminal(args, util) {
         var value = parseInt(args.TOGGLE)
         console.log(value)
@@ -988,8 +1224,8 @@ class Scratch3LepiBlocks {
         return this.runtime.ros.setSystemLed(data1 | data2)
     }
 
-    closeFan(){
-        return this.runtime.ros.setSystemFanTemp({ temp1:100, temp2:100 })
+    closeFan() {
+        return this.runtime.ros.setSystemFanTemp({ temp1: 100, temp2: 100 })
     }
 
     setFanTemp(args) {
@@ -1021,13 +1257,14 @@ class Scratch3LepiBlocks {
             if (window.location.protocol == 'https:') {
                 url = `http://${this.runtime.vm.ros.ip}:${port}`
             } else {
-                let res = await axios.get(`http://localhost:20110/create_proxy`, {
-                    params: {
-                        host: this.runtime.vm.ros.ip, port: port
-                    }
-                })
-                console.log(res.data)
-                url = `http://localhost:${res.data.proxy_port}`
+                // let res = await axios.get(`http://localhost:20110/create_proxy`, {
+                //     params: {
+                //         host: this.runtime.vm.ros.ip, port: port
+                //     }
+                // })
+                // console.log(res.data)
+                // url = `http://localhost:${res.data.proxy_port}`
+                url = `http://${this.runtime.vm.ros.ip}:${port}`
             }
 
             let a = document.createElement('a')
@@ -1078,7 +1315,7 @@ class Scratch3LepiBlocks {
         const port = parseInt(args.PORT)
 
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
-            let url = `http://${this.runtime.vm.ros.ip}:${port}`
+            let url = `http://${this.runtime.vm.ros.ip}:${port}/files/Lepi_Data/`
             // if (window.location.protocol == 'https:'){
             //     url = `http://${this.runtime.vm.ros.ip}:${port}`
             // }else{
@@ -1112,7 +1349,12 @@ class Scratch3LepiBlocks {
         }
     }
 
-    openAudioAnalyzer(){
+    openAudioAnalyzer() {
+        if(window.EditorPreload && EditorPreload.openAudioAnalyzer){
+            EditorPreload.openAudioAnalyzer()
+            return
+        }
+
         let url = `../audio_analyzer`
         url = `${url}?lepi=${this.runtime.vm.LEPI_IP}`
         let a = document.createElement('a')
@@ -1156,6 +1398,103 @@ class Scratch3LepiBlocks {
         a.click()
     }
 
+    proxyURL(args, util) {
+        let url = `http://${location.hostname}:20110/proxy?url=${args.URL}`
+        return url
+    }
+
+    runBigScreenProject(args) {
+        let file = args.FILE
+        if (file && file.indexOf('.sb3') > 0) {
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                let ip = 'localhost'
+                this.runtime.ros.proxyGet(`http://${ip}:8000/bigscreen-run?project_url=http://${ip}:8000/explore/Scratch/${file}`)
+            }
+        }
+    }
+
+    runLedSimulator(args) {
+        this.loadWebApp({ URL: `http://localhost:8000/app/static/apps/led_simulator2/screen.html` })
+    }
+
+    async saveFileToComputer(args) {
+        let url = args.FILE.trim()
+        if (url.indexOf('data:image/') == 0 || url.indexOf('http') == 0) {
+            await downloadFile(url)
+        }
+    }
+
+    async saveFileToLepi(args) {
+        let url = args.FILE.trim()
+        let dir = args.DIR.trim()
+        if (url.indexOf('data:image/') == 0 || url.indexOf('http') == 0) {
+            await this.downloadFileLepi(url, '/home/pi/Lepi_Data/' + dir)
+        }
+    }
+
+    // 下载文件函数
+    async downloadFileLepi(fileUrl, dir) {
+
+        try {
+
+            let blob = await fetchBlob(fileUrl)
+
+            // 从URL中提取文件名
+            const filename = getFilenameFromUrl(fileUrl);
+
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                return new Promise(resolve => {
+
+                    var reader = new FileReader();
+                    reader.onload = async (e) => {
+                        await this.runtime.ros.saveFileData(filename, e.target.result, dir);
+                        resolve('保存成功')
+                        // 显示成功状态
+                        console.log(`文件 "${filename}" 下载成功！`, 'success');
+                    }
+                    reader.readAsDataURL(blob);
+
+                })
+            } else {
+                return '未连接到主机'
+            }
+
+        } catch (error) {
+            console.log(`下载失败: ${error.message}`, 'error');
+        } finally {
+        }
+    }
+
+    loadWebApp(args) {
+        let url = args.URL.trim()
+        if (url && url.length > 0) {
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                let ip = 'localhost'
+                this.runtime.ros.proxyGet(`http://${ip}:8000/load-url?url=${url}`)
+            }
+        }
+    }
+
+    async batteryInfo(args) {
+        let id = parseInt(args.BAT)
+        let info = await this.runtime.ros.getPowerMeas()
+        let bat = { 'voltage': info.data.y / 1000.0, 'current': info.data.x / 1000.0 }
+        bat['percentage'] = info.data.z > 1000 ? info.data.z - 1000 : info.data.z
+        bat['charging_status'] = info.data.z > 1000 ? 1 : 0
+        bat['power'] = bat['voltage'] * bat['current']
+        if (id == 1) {
+            return bat['voltage']
+        } else if (id == 2) {
+            return bat['current']
+        } else if (id == 3) {
+            return bat['power']
+        } else if (id == 4) {
+            return bat['percentage']
+        } else if (id == 5) {
+            return bat['charging_status']
+        }
+        return JSON.stringify(bat)
+    }
 }
 
 (() => {

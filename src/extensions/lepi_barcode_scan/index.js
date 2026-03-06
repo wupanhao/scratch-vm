@@ -8,7 +8,7 @@ const Menu = require('../../util/menu');
 // const StageLayering = require('../../engine/stage-layering')
 // const getMonitorIdForBlockWithArgs = require('../../util/get-monitor-id');
 // const MathUtil = require('../../util/math-util');
-
+const QRCode = require('qrcode')
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
  * @type {string}
@@ -86,6 +86,23 @@ class LepiBarcodeScan extends EventEmitter {
                         // defaultValue: 0
                     }
                 }
+            }, {
+                opcode: 'generateBarcode',
+                text: formatMessage({
+                    id: 'lepi.generateBarcode',
+                    default: '二维码[TAG] 转base64, 大小[SIZE]',
+                }),
+                blockType: BlockType.REPORTER,
+                arguments: {
+                    TAG: {
+                        type: ArgumentType.STRING,
+                        defaultValue: 'tag'
+                    },
+                    SIZE: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 360
+                    },
+                }
             },],
             menus: {
                 data: Menu.formatMenu([formatMessage({
@@ -157,6 +174,14 @@ class LepiBarcodeScan extends EventEmitter {
         } else {
             return this.defaultValue[data_id]
         }
+    }
+
+    async generateBarcode(args, util) {
+        let tag = args.TAG
+        let width = parseInt(args.SIZE)
+        console.log(tag)
+        let base64 = await QRCode.toDataURL(tag.toString(), { width: width })
+        return base64
     }
 
 }

@@ -113,8 +113,29 @@ class VirtualMachine extends EventEmitter {
                 console.log('on PC')
                 this.LEPI_IP = window.location.hostname
             }
+            if(location.protocol == 'tw-editor:'){
+                this.LEPI_IP = '169.254.50.50'
+            }
             console.log(this.LEPI_IP)
-            this.connect(this.LEPI_IP)
+            var onConnectFail = () => {
+                /*
+                if (navigator.platform != 'Linux armv7l') {
+                    console.log('not on pi, do not retry')
+                    return
+                }
+                */
+                console.log('connect Fail, retry after 3 seconds')
+
+                setTimeout(() => {
+                    this.connect(this.LEPI_IP, () => { }, onConnectFail)
+                }, 3000)
+            }
+
+            if (navigator.platform.indexOf('Win32') >= 0) {
+                onConnectFail = () => { }
+            }
+
+            this.connect(this.LEPI_IP, () => { }, onConnectFail)
         } catch (e) {
             console.log(e)
         }
@@ -1978,7 +1999,12 @@ class VirtualMachine extends EventEmitter {
 
         this.ros = new RosClient(this.LEPI_IP)
         this.ros.conectToRos(() => {
-            console.log('connected to ros server')
+            console.log('vm connected to ros server')
+            try {
+                window.LEPI_IP = ip
+            } catch (error) {
+                console.log(error, ip)
+            }
             console.log(this.ros)
             this.runtime.ros = this.ros
             this.runtime.emit('LEPI_CONNECTED')
@@ -1994,8 +2020,9 @@ class VirtualMachine extends EventEmitter {
             console.log('Error connecting to websocket server: ', error);
         });
 
-        this.ros.ros.on('VM: close', () => {
-            console.log('Connection to websocket server closed.');
+        this.ros.ros.on('close', () => {
+            console.log('VM: Connection to websocket server closed.');
+            this.runtime.emit('PERIPHERAL_DISCONNECTED')
         });
 
     }

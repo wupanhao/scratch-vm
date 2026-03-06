@@ -41,6 +41,9 @@ const color_map = {
     }), '紫色': () => formatMessage({
         id: 'lepi.purple',
         default: '紫色',
+    }), '品红': () => formatMessage({
+        id: 'lepi.magenta',
+        default: '品红',
     }), '黑色': () => formatMessage({
         id: 'lepi.black',
         default: '黑色',
@@ -50,6 +53,9 @@ const color_map = {
     }), '白色': () => formatMessage({
         id: 'lepi.white',
         default: '白色',
+    }), '不指定': () => formatMessage({
+        id: 'lepi.not_specified',
+        default: '不指定',
     })
 }
 
@@ -60,10 +66,13 @@ const color_map2 = {
     "绿色": "绿色",
     "蓝色": "蓝色",
     "青色": "青色",
+    "靛青": "青色",
     "紫色": "紫色",
+    "品红": "品红",
     "黑色": "黑色",
     "灰色": "灰色",
     "白色": "白色",
+    "不指定": "不指定",
     "red": "红色",
     "orange": "橙色",
     "yellow": "黄色",
@@ -71,9 +80,21 @@ const color_map2 = {
     "blue": "蓝色",
     "indigo": "青色",
     "purple": "紫色",
+    "magenta": "品红",
     "black": "黑色",
     "gray": "灰色",
     "white": "白色",
+}
+
+const shape_map = {
+    'triangle': '三角形',
+    'square': '正方形',
+    'rectangle': '矩形',
+    'rhombus': '菱形',
+    'polygon': '多边形',
+    'circle': '圆形',
+    'oval': '椭圆',
+    'un_known': '未知'
 }
 
 class LepiColorDetect extends EventEmitter {
@@ -84,6 +105,7 @@ class LepiColorDetect extends EventEmitter {
          * @type {Runtime}
          */
         this.colorList = []
+        this.colorBlocksList = []
         this.colorDetection = [0, 0, 0, 0, 0]
         this.runtime = runtime;
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
@@ -117,6 +139,32 @@ class LepiColorDetect extends EventEmitter {
             blockIconURI: blockIconURI,
             // showStatusButton: true,
             blocks: [
+                {
+                    opcode: 'getColorList',
+                    text: formatMessage({
+                        id: 'lepi.getColorList',
+                        default: '更新颜色列表',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'setMinMaxErea',
+                    text: formatMessage({
+                        id: 'lepi.setMinMaxErea',
+                        default: '设置检测面积, 最小[MIN], 最大[MAX]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        MIN: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 200
+                        },
+                        MAX: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 86400
+                        },
+                    }
+                },
                 {
                     opcode: 'detectColor',
                     text: formatMessage({
@@ -174,19 +222,80 @@ class LepiColorDetect extends EventEmitter {
                     }
                 },
                 {
-                    opcode: 'getColorList',
+                    opcode: 'detectColorBlocks',
                     text: formatMessage({
-                        id: 'lepi.getColorList',
-                        default: '更新颜色列表',
+                        id: 'lepi.detectColorBlocks',
+                        default: '检测（[X1],[Y1]）至（[X2],[Y2]）的色块, 颜色[COLOR], 形状[SHAPE]',
                     }),
                     blockType: BlockType.COMMAND,
+                    arguments: {
+                        X1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        Y1: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        X2: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 480
+                        },
+                        Y2: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 360
+                        },
+                        COLOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'colors2',
+                            defaultValue: '不指定'
+                        },
+                        SHAPE: {
+                            type: ArgumentType.STRING,
+                            menu: 'colorShape',
+                            defaultValue: 'not_specified'
+                        },
+                    }
+                },
+                {
+                    opcode: 'colorBlocksDetected',
+                    text: formatMessage({
+                        id: 'lepi.colorBlocksDetected',
+                        default: '检测到对应色块?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
                 }, {
+                    opcode: 'colorBlocksLength',
+                    text: formatMessage({
+                        id: 'lepi.colorBlocksLength',
+                        default: '检测到色块数量',
+                    }),
+                    blockType: BlockType.REPORTER,
+                }, {
+                    opcode: 'getColorBlocksData',
+                    blockType: BlockType.REPORTER,
+                    text: formatMessage({
+                        id: 'lepi.getColorBlocksData',
+                        default: '第[I]个色块的[ID]',
+                    }),
+                    arguments: {
+                        I: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1,
+                        },
+                        ID: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'colorBlocksData'
+                        }
+                    }
+                },
+                {
                     opcode: 'getColorThreshold',
                     text: formatMessage({
                         id: 'lepi.getColorThreshold',
                         default: '查询 [COLOR] 检测范围',
                     }),
-                    blockType: BlockType.COMMAND,
+                    blockType: BlockType.REPORTER,
                     arguments: {
                         COLOR: {
                             type: ArgumentType.STRING,
@@ -231,12 +340,15 @@ class LepiColorDetect extends EventEmitter {
                         },
                         HIGH_H: {
                             type: ArgumentType.NUMBER,
+                            defaultValue: 180
                         },
                         HIGH_S: {
                             type: ArgumentType.NUMBER,
+                            defaultValue: 255
                         },
                         HIGH_V: {
                             type: ArgumentType.NUMBER,
+                            defaultValue: 255
                         },
                         COLOR: {
                             type: ArgumentType.STRING,
@@ -244,10 +356,58 @@ class LepiColorDetect extends EventEmitter {
                         }
                     }
                 },
+                {
+                    opcode: 'setColorThresholdJson',
+                    text: formatMessage({
+                        id: 'lepi.setColorThresholdJson',
+                        default: '设置[COLOR] 检测阈值 [THRESHOLD]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        THRESHOLD: {
+                            type: ArgumentType.STRING,
+                            defaultValue: '{}'
+                        },
+                        COLOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'colors'
+                        }
+                    }
+                },
+                {
+                    opcode: 'detectColorThreshold',
+                    text: formatMessage({
+                        id: 'lepi.detectColorThreshold',
+                        default: '计算圆心（[X],[Y]）半径[R]区域的颜色阈值, 放大[SCALE]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 240
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 180
+                        },
+                        R: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 20
+                        },
+                        SCALE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
+                        },
+                    }
+                },
             ],
             menus: {
                 colors: 'formatColorList',
-                // colors: Menu.formatMenu2(['黄线', '红线', '绿线']),
+                colors2: 'formatColorList2',
+                colorShape: Menu.formatMenu3(['三角形', '正方形', '矩形', '菱形', '多边形', '圆形', '椭圆', '不指定'],
+                    ['triangle', 'square', 'rectangle', 'rhombus', 'polygon', 'circle', 'oval', 'not_specified']
+                ),
+                colorBlocksData: Menu.formatMenu2(['颜色', '形状', '顶点数量', '中心点x', '中心点y', '面积', '宽度', '高度']),
                 colorData: Menu.formatMenu([formatMessage({
                     id: 'lepi.center_x',
                     default: '中心点x坐标',
@@ -271,6 +431,9 @@ class LepiColorDetect extends EventEmitter {
 
     formatColorList() {
         return Menu.formatMenu2(this.colorList.map(color => color_map[color]()))
+    }
+    formatColorList2() {
+        return Menu.formatMenu2(this.colorList.concat(['不指定']).map(color => color_map[color]()))
     }
     getColorList() {
         return new Promise(resolve => {
@@ -303,12 +466,12 @@ class LepiColorDetect extends EventEmitter {
         console.log(args)
         var params = {}
         params.color = color_map2[args.COLOR]
-        params.low_h = parseInt(parseInt(args.LOW_H) / 240 * 180)
-        params.low_s = parseInt(parseInt(args.LOW_S) / 240 * 255)
-        params.low_v = parseInt(parseInt(args.LOW_V) / 240 * 255)
-        params.high_h = parseInt(parseInt(args.HIGH_H) / 240 * 180)
-        params.high_s = parseInt(parseInt(args.HIGH_S) / 240 * 255)
-        params.high_v = parseInt(parseInt(args.HIGH_V) / 240 * 255)
+        params.low_h = parseInt(args.LOW_H)
+        params.low_s = parseInt(args.LOW_S)
+        params.low_v = parseInt(args.LOW_V)
+        params.high_h = parseInt(args.HIGH_H)
+        params.high_s = parseInt(args.HIGH_S)
+        params.high_v = parseInt(args.HIGH_V)
         console.log(params)
         return this.runtime.ros.setColorThreshold(params)
     }
@@ -344,6 +507,95 @@ class LepiColorDetect extends EventEmitter {
     getColorData(args, util) {
         let i = parseInt(args.ID)
         return this.colorDetection[i]
+    }
+    detectColorThreshold(args, util) {
+        let x = parseInt(args.X)
+        let y = parseInt(args.Y)
+        let r = parseInt(args.R)
+        let scale = parseFloat(args.SCALE)
+        return this.runtime.ros.detectColorThreshold(x, y, r, scale)
+    }
+    setColorThresholdJson(args) {
+        let params = {}
+        try {
+            const threshold = JSON.parse(args.THRESHOLD)
+            if (Object.keys(threshold).length >= 6) {
+                params.low_h = threshold.min_h
+                params.low_s = threshold.min_s
+                params.low_v = threshold.min_v
+                params.high_h = threshold.max_h
+                params.high_s = threshold.max_s
+                params.high_v = threshold.max_v
+                params.color = color_map2[args.COLOR]
+                return this.runtime.ros.setColorThreshold(params)
+            } else {
+                console.log('param number should be at least 6', params)
+            }
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+    detectColorBlocks(args, util) {
+        var params = {}
+        params.color = color_map2[args.COLOR]
+        params.x1 = parseInt(args.X1)
+        params.y1 = parseInt(args.Y1)
+        params.x2 = parseInt(args.X2)
+        params.y2 = parseInt(args.Y2)
+        params.shape = args.SHAPE
+        console.log(params)
+        return new Promise(resolve => {
+            this.runtime.ros.detectColorBlocks({ data: JSON.stringify(params) }).then(result => {
+                let detections = JSON.parse(result.data)
+                // 按面积大小降序排列
+                detections.sort((a, b) => b.area - a.area)
+                console.log(detections)
+                this.colorBlocksList = detections
+                resolve(detections.length)
+            })
+        })
+    }
+    colorBlocksDetected() {
+        return this.colorBlocksList.length > 0
+    }
+    colorBlocksLength() {
+        return this.colorBlocksList.length
+    }
+    // ['颜色', '形状', '顶点数量', '中心点x', '中心点y', '面积', '宽度', '高度']
+    getColorBlocksData(args) {
+        let i = parseInt(args.I) - 1
+        let id = args.ID
+        if (i >= 0 && i < this.colorBlocksList.length) {
+            let detection = this.colorBlocksList[i]
+            if (id == '颜色') {
+                return color_map2[detection['color']] || detection['color']
+            } else if (id == '形状') {
+                return shape_map[detection['shape']] || detection['shape']
+            } else if (id == '顶点数量') {
+                return detection['vertices']
+            } else if (id == '中心点x') {
+                return detection['center'][0]
+            } else if (id == '中心点y') {
+                return detection['center'][1]
+            } else if (id == '面积') {
+                return detection['area']
+            } else if (id == '宽度') {
+                return detection['bounding_rect'][2]
+            } else if (id == '高度') {
+                return detection['bounding_rect'][3]
+            } else {
+                return 0
+            }
+        } else {
+            return 0
+        }
+    }
+    setMinMaxErea(args) {
+        var params = {}
+        params.min = parseInt(args.MIN)
+        params.max = parseInt(args.MAX)
+        return this.runtime.ros.setMinMaxErea({ data: JSON.stringify(params) })
     }
 }
 

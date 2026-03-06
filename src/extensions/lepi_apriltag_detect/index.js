@@ -76,7 +76,8 @@ class LepiApriltag extends EventEmitter {
                 arguments: {
                     TAG: {
                         type: ArgumentType.NUMBER,
-                        menu: 'apriltags'
+                        defaultValue: 0
+                        // menu: 'apriltags'
                     }
                 }
             }, {
@@ -132,6 +133,8 @@ class LepiApriltag extends EventEmitter {
                 this.apriltagDetections = result.detections
                 if (this.apriltagDetections.length > 0) {
                     this.apriltag = this.apriltagDetections[0]
+                } else {
+                    this.apriltag = null
                 }
                 // resolve(result)
                 resolve(result.detections.map(e => e.id).join(','))
@@ -160,7 +163,7 @@ class LepiApriltag extends EventEmitter {
         if (this.apriltag) {
             return this.apriltag.pose_t[axis_id]
         } else {
-            return null
+            return 0
         }
     }
     aprilTagRotation(args, util) {
@@ -168,7 +171,7 @@ class LepiApriltag extends EventEmitter {
         if (this.apriltag) {
             return this.apriltag.pose_r[axis_id]
         } else {
-            return null
+            return 0
         }
     }
 }

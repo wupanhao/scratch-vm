@@ -29,6 +29,11 @@ class LepiFaceRecognize extends EventEmitter {
         this.addedFaceLabel = false
         this.faceLabels = []
         this.faceDetections = []
+        this.faceAge = []
+        this.faceEmotion = []
+        this.faceGender = []
+        this.faceAnalyze = []
+        this.faceMeshDetections = []
         this.runtime = runtime;
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             try {
@@ -146,9 +151,17 @@ class LepiFaceRecognize extends EventEmitter {
                     opcode: 'faceDetected',
                     text: formatMessage({
                         id: 'lepi.faceDetected',
-                        default: '识别到人脸?',
+                        default: '检测到有人?',
                     }),
                     blockType: BlockType.BOOLEAN
+                },
+                {
+                    opcode: 'faceLabelResult',
+                    text: formatMessage({
+                        id: 'lepi.faceLabelResult',
+                        default: '人脸识别结果',
+                    }),
+                    blockType: BlockType.REPORTER
                 },
                 {
                     opcode: 'detectedFaceLabel',
@@ -274,6 +287,14 @@ class LepiFaceRecognize extends EventEmitter {
                         }
                     }
                 },
+                {
+                    opcode: 'openFaceDir',
+                    text: formatMessage({
+                        id: 'lepi.openFaceDir',
+                        default: '打开人脸目录',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
                 '---',
                 {
                     opcode: 'detectFaceMesh',
@@ -291,10 +312,20 @@ class LepiFaceRecognize extends EventEmitter {
                     blockType: BlockType.BOOLEAN,
                 },
                 {
+                    opcode: 'faceMeshResult',
+                    text: '人脸网格结果',
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'faceMeshSolve',
+                    text: '人脸网格姿态解算',
+                    blockType: BlockType.REPORTER,
+                },
+                {
                     opcode: 'FaceMeshKeypoints',
                     text: formatMessage({
                         id: 'lepi.FaceMeshKeypoints',
-                        default: '人脸网格[N]号关键点 [POINT]',
+                        default: '人脸网格[N]号特征点 [POINT]',
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {
@@ -308,6 +339,70 @@ class LepiFaceRecognize extends EventEmitter {
                             // defaultValue: 0
                         }
                     }
+                },
+                '---', {
+                    opcode: 'predictEmotion',
+                    text: formatMessage({
+                        id: 'lepi.predictEmotion',
+                        default: '人脸表情预测',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'emotionResult',
+                    text: formatMessage({
+                        id: 'lepi.emotionResult',
+                        default: '表情预测结果',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'predictAge',
+                    text: formatMessage({
+                        id: 'lepi.predictAge',
+                        default: '人脸年龄预测',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'ageResult',
+                    text: formatMessage({
+                        id: 'lepi.ageResult',
+                        default: '年龄预测结果',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'predictGender',
+                    text: formatMessage({
+                        id: 'lepi.predictGender',
+                        default: '人脸性别预测',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'genderResult',
+                    text: formatMessage({
+                        id: 'lepi.genderResult',
+                        default: '性别预测结果',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
+                {
+                    opcode: 'analyzeFace',
+                    text: formatMessage({
+                        id: 'lepi.analyzeFace',
+                        default: '人脸属性分析',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'analyzeResult',
+                    text: formatMessage({
+                        id: 'lepi.analyzeResult',
+                        default: '属性分析结果',
+                    }),
+                    blockType: BlockType.REPORTER,
                 },
             ],
             menus: {
@@ -453,6 +548,20 @@ class LepiFaceRecognize extends EventEmitter {
         return this.removeFaceLabel(args, util)
     }
 
+    openFaceDir(){
+        let port = 8888
+        if (this.runtime.ros && this.runtime.ros.isConnected()) {
+            let url = `http://${this.runtime.vm.ros.ip}:${port}/files/Lepi_Data/ros/face_recognizer/known_face/`
+
+            let a = document.createElement('a')
+            a.href = url
+            a.target = '_blank'
+            a.click()
+        } else {
+            console.log('未连接到主机')
+        }
+    }
+
     detectFaceLocations() {
         return new Promise(resolve => {
             this.runtime.ros.detectFaceLocations().then(result => {
@@ -475,6 +584,45 @@ class LepiFaceRecognize extends EventEmitter {
         })
     }
 
+    faceLabelResult() {
+        return JSON.stringify(this.faceDetections.map(detection => {
+            return detection.id
+        }))
+    }
+
+    async predictEmotion() {
+        this.faceEmotion = await this.runtime.ros.predictFaceEmotion()
+    }
+
+    emotionResult() {
+        return JSON.stringify(this.faceEmotion.map(item => item.id))
+    }
+
+    async predictAge() {
+        this.faceAge = await this.runtime.ros.predictFaceAge()
+
+    }
+
+    ageResult() {
+        return JSON.stringify(this.faceAge.map(item => item.id))
+    }
+
+    async predictGender() {
+        this.faceGender = await this.runtime.ros.predictFaceGender()
+
+    }
+
+    genderResult() {
+        return JSON.stringify(this.faceGender.map(item => item.id))
+    }
+
+    async analyzeFace() {
+        this.faceAnalyze = await this.runtime.ros.analyzeFace()
+    }
+
+    analyzeResult() {
+        return JSON.stringify(this.faceAnalyze.map(item => item.id))
+    }
 
     getFaceData(id) {
         if (id >= 0 && this.faceDetections.length > id) {
@@ -529,25 +677,81 @@ class LepiFaceRecognize extends EventEmitter {
     detectFaceMesh(args, util) {
         return new Promise((resolve) => {
             this.runtime.ros.detectFaceMesh().then(data => {
-                this.result = data
-                resolve(this.result.length)
+                this.faceMeshDetections = data
+                resolve(this.faceMeshDetections.length)
             })
         })
     }
     detectedFaceMesh() {
-        return this.result && this.result.length >= 1
+        return this.faceMeshDetections && this.faceMeshDetections.length >= 1
     }
 
-
+    faceMeshResult() {
+        if (this.faceMeshDetections && this.faceMeshDetections.length >= 1) {
+            return JSON.stringify(this.faceMeshDetections)
+        } else {
+            return JSON.stringify([])
+        }
+    }
+    faceMeshSolve() {
+        if (this.faceMeshDetections && this.faceMeshDetections.length >= 1) {
+            return JSON.stringify(Kalidokit.Face.solve(this.faceMeshDetections))
+        } else {
+            return JSON.stringify({
+                "eye": {
+                    "l": 1,
+                    "r": 1
+                },
+                "mouth": {
+                    "x": 0,
+                    "y": 0,
+                    "shape": {
+                        "A": 0,
+                        "E": 0,
+                        "I": 0,
+                        "O": 0,
+                        "U": 0
+                    }
+                },
+                "head": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0,
+                    "width": 0.3,
+                    "height": 0.6,
+                    "position": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "z": 0
+                    },
+                    "normalized": {
+                        "y": 0,
+                        "x": 0,
+                        "z": 0
+                    },
+                    "degrees": {
+                        "y": 0,
+                        "x": 0,
+                        "z": 0
+                    }
+                },
+                "brow": 0,
+                "pupil": {
+                    "x": 0,
+                    "y": 0
+                }
+            })
+        }
+    }
     FaceMeshKeypoints(args, util) {
         let wh = [480, 360, 480]
         let key = ['x', 'y', 'z']
         let id = parseInt(args.N)
         let axis = parseInt(args.POINT)
         let k = key[axis]
-        console.log(id, axis, k, this.result)
-        if (this.result.length >= 1 && id <= 477) {
-            return parseInt(this.result[id][k] * wh[axis])
+        console.log(id, axis, k, this.faceMeshDetections)
+        if (this.faceMeshDetections.length >= 1 && id <= 477) {
+            return parseInt(this.faceMeshDetections[id][k] * wh[axis])
         }
         return 0
     }
