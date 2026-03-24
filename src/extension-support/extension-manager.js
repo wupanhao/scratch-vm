@@ -83,6 +83,7 @@ const defaultBuiltinExtensions = {
     lepiLedSimulator: () => require('../extensions/lepi_led_simulator/index2'),
     lepiDifyLLM: () => require('../extensions/lepi_dify_llm'),
     lepiLive2D: () => require('../extensions/lepi_live2d'),
+    lepiXiaozhiRobot: () => require('../extensions/lepi_xiaozhi_robot'),
 };
 
 /**

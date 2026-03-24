@@ -3207,6 +3207,97 @@ class ros_client {
     })
   }
 
+  subXiaozhiAsrResult(callback) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var listener = new ROSLIB.Topic({
+        ros: this.ros,
+        name: '/ubiquityrobot/xiaozhi_robot_node/asr_result',
+        messageType: 'std_msgs/String'
+      });
+
+      listener.subscribe(callback)
+      resolve()
+    })
+  }
+
+  subXiaozhiReply(callback) {
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var listener = new ROSLIB.Topic({
+        ros: this.ros,
+        name: '/ubiquityrobot/xiaozhi_robot_node/reply_text',
+        messageType: 'std_msgs/String'
+      });
+
+      listener.subscribe(callback)
+      resolve()
+    })
+  }
+
+  startXiaozhiAsr(data){
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/xiaozhi_robot_node/start_listening',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  stopXiaozhiAsr(data){
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/xiaozhi_robot_node/stop_listening',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
+  getXiaozhiState(data){
+    return new Promise(resolve => {
+      // Create a Service client with details of the service's name and service type.
+      var service = new ROSLIB.Service({
+        ros: this.ros,
+        name: '/ubiquityrobot/xiaozhi_robot_node/xiaozhi_state',
+        serviceType: 'pi_driver/GetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({ data });
+
+      // Send the request
+      service.callService(request, (result) => {
+        console.log(result)
+        resolve(result.data)
+      }, (err) => {
+        console.log(err)
+      });
+    })
+  }
+
 }
 
 

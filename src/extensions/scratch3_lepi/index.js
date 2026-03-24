@@ -115,6 +115,9 @@ const node_name_maps = {
     }), "/ubiquityrobot/hexapod_driver_node": () => formatMessage({
         id: 'lepi.hexapod_robot',
         default: '六足机器人',
+    }), "/ubiquityrobot/xiaozhi_robot_node": () => formatMessage({
+        id: 'lepi.xiaozhi_robot',
+        default: '小智机器人',
     }),
 
 
@@ -1350,7 +1353,7 @@ class Scratch3LepiBlocks {
     }
 
     openAudioAnalyzer() {
-        if(window.EditorPreload && EditorPreload.openAudioAnalyzer){
+        if (window.EditorPreload && EditorPreload.openAudioAnalyzer) {
             EditorPreload.openAudioAnalyzer()
             return
         }
