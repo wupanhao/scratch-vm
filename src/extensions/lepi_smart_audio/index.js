@@ -94,33 +94,6 @@ class LepiSmartAudio extends EventEmitter {
         this.recognitionEnd = false;
         this.recognitionResult = '';
 
-        /*
-        this.recognition = new webkitSpeechRecognition();
-        this.recognition.lang = 'cmn-Hans-CN'; //普通话 (中国大陆)
-        this.recognitionResult = '';
-        this.recognitionConfidence = false;
-        this.recognition.onresult = (event) => {
-            this.recognitionEnd = true;
-            console.log(event);
-            this.recognitionResult = event.results[0][0].transcript
-            this.recognitionConfidence = event.results[0][0].confidence
-        }
-        this.recognition.onerror = function(event) { 
-            console.log(event);
-        }
-        this.hotwordDetected = false
-        this.commandResult = {
-            confidence: 0,
-            grammar: 0,
-            input: ""
-        }
-        this.grammer = {
-            name: '',
-            grammer: '',
-            slot: {
-            }
-        }
-        */
         this.hotwordList = []
         this.model_dir = `/home/pi/Lepi_Data/ros/smart_audio_node/resources/models`
 
@@ -140,13 +113,6 @@ class LepiSmartAudio extends EventEmitter {
             }
             this.StopSpeak()
         });
-
-        // var scriptEle = document.createElement("script");  //not work
-        // scriptEle.type = "text/javasctipt";
-        // // scriptEle.async = true;
-        // scriptEle.src = "static/web-assembly-vad-asr-sherpa-onnx-zh-en-jp-ko-cantonese-sense-voice/sherpa-onnx-wasm-main-vad-asr.js";
-        // var x = document.getElementsByTagName("head")[0];
-        // x.insertBefore(scriptEle, x.firstChild);
 
     }
 
@@ -173,84 +139,6 @@ class LepiSmartAudio extends EventEmitter {
             // showStatusButton: true,
             blocks: [
 
-
-                /*
-                {
-                    opcode: 'declareGrammer',
-                    text: '声明语法规则 [GRAMMER]',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        GRAMMER: {
-                            type: ArgumentType.STRING,
-                            defaultValue: '你好<name>'
-                        }
-                    }
-                },
-                {
-                    opcode: 'addSlot',
-                    text: '添加语法槽 [SLOT] [VALUE]',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        SLOT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'name'
-                        },
-                        VALUE: {
-                            type: ArgumentType.STRING,
-                            defaultValue: '小明|小蒙'
-                        },
-                    }
-                },
-                {
-                    opcode: 'saveGrammer',
-                    text: '保存语法规则 [NAME]',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        NAME: {
-                            type: ArgumentType.STRING,
-                            defaultValue: '问候'
-                        }
-                    }
-                },
-                {
-                    opcode: 'updateGrammerList',
-                    text: '更新语法规则',
-                    blockType: BlockType.COMMAND,
-                },
-                {
-                    opcode: 'deleteGrammer',
-                    text: '删除语法规则[GRAMMER]',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        NAME: {
-                            type: ArgumentType.STRING,
-                            menu: 'grammer'
-                        }
-                    }
-                },
-
-                {
-                    opcode: 'commandConfidence',
-                    text: '命令词置信度',
-                    blockType: BlockType.REPORTER,
-                },
-                {
-                    opcode: 'detectedCommand',
-                    text: '命令词',
-                    blockType: BlockType.REPORTER,
-                },
-                {
-                    opcode: 'detectCommand',
-                    text: '离线语音识别, 时长[LEN]秒',
-                    blockType: BlockType.COMMAND,
-                    arguments: {
-                        LEN: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 2
-                        }
-                    }
-                },
-                */
                 {
                     opcode: 'LocalSpeechRecognition',
                     text: formatMessage({
@@ -288,35 +176,7 @@ class LepiSmartAudio extends EventEmitter {
                         },
                     }
                 },
-                // {
-                //     opcode: 'SpeakOfflineWait',
-                //     text: formatMessage({
-                //         id: 'lepi.SpeakOfflineWait',
-                //         default: '电脑离线语音朗读[TEXT], 发音人[SPEAKER], 音量[VOLUME] 速度[RATE] 音调[PITCH], 等待读完',
-                //     }),
-                //     blockType: BlockType.COMMAND,
-                //     arguments: {
-                //         TEXT: {
-                //             type: ArgumentType.STRING,
-                //             defaultValue: formatMessage({
-                //                 id: 'lepi.hello',
-                //                 default: '你好',
-                //             })
-                //         }, SPEAKER: {
-                //             type: ArgumentType.STRING,
-                //             menu: 'speakers',
-                //         }, VOLUME: {
-                //             type: ArgumentType.STRING,
-                //             defaultValue: 100
-                //         }, RATE: {
-                //             type: ArgumentType.STRING,
-                //             defaultValue: 10
-                //         }, PITCH: {
-                //             type: ArgumentType.STRING,
-                //             defaultValue: 50
-                //         },
-                //     }
-                // },
+
                 {
                     opcode: 'StopSpeak',
                     text: formatMessage({
@@ -566,50 +426,6 @@ class LepiSmartAudio extends EventEmitter {
         }
     }
 
-
-    /*
-
-    declareGrammer(args) {
-        let grammar = args.GRAMMER
-        this.grammer.grammer = grammar
-    }
-    addSlot(args) {
-        let name = args.SLOT
-        let value = args.VALUE
-        this.grammer.slot[name] = value
-    }
-    saveGrammer(args) {
-        let name = args.NAME
-        this.grammer.name = name
-        let bnf = this.grammar2BNF()
-        console.log(bnf)
-        if (!bnf) {
-            return '语法规则不全,请确认语法槽添加完整'
-        } else {
-            let content = new Blob([bnf])
-            this.downloadBlob(`${name}.bnf`, content)
-            return '保存成功'
-        }
-    }
-    grammar2BNF() {
-        let re = /<(\w+)>/g;
-        let res;
-        let head = '#BNF+IAT 1.0 UTF-8;\n\n!grammar command;\n'
-        let slots = ''
-        while (res = re.exec(this.grammer.grammer)) {
-            console.log(res);
-            head += `!slot ${res[0]};\n`
-            let name = res[1]
-            if (!this.grammer.slot[name]) {
-                return false
-            }
-            slots += `${res[0]}:${this.grammer.slot[name]};`
-        }
-        head += `!start <commandstart>;\n<commandstart>:${this.grammer.grammer};\n`
-        let bnf = head + slots
-        return bnf
-    }
-    */
 
     SpeechRecognitionOffline() {
         this.recognitionEnd = false
