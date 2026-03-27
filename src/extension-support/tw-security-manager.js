@@ -28,8 +28,8 @@
  * ```
  */
 
-const extensionURLPrefix = window.location.origin + '/static/models/extensions/'
-const localFiles = ['base.js', 'bitwise.js', 'dictionaries.js', 'encoding.js', 'files.js', 'http.js', 'iframe.js', 'json.js', 'local-storage.js', 'math.js', 'regexp.js', 'text.js', 'utilities.js', 'ws.js', 'consoles.js', 'xml.js']
+const extensionURLPrefix = window.location.href + '/../static/models/extensions/'
+const localFiles = ['base.js', 'bitwise.js', 'dictionaries.js', 'encoding.js', 'files.js', 'http.js', 'iframe.js', 'json.js', 'local-storage.js', 'math.js', 'regexp.js', 'text.js', 'utilities.js', 'ws.js', 'consoles.js', 'xml.js', 'Video.js']
 
 class SecurityManager {
     /**

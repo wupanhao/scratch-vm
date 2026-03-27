@@ -86,8 +86,8 @@ async function delay_ms(ms = 1000) {
 const axios = require('axios').default;
 let onDetectResult = null
 
-const asr_url = 'http://agent.jszcai.com/v1/audio-to-text';
-const tts_url = 'http://agent.jszcai.com/v1/text-to-audio';
+const asr_url = 'https://agent.jszcai.com/v1/audio-to-text';
+const tts_url = 'https://agent.jszcai.com/v1/text-to-audio';
 const apiKey = require('./api_key');
 async function recognize_audio(blob) {
     // 或直接使用文件对象

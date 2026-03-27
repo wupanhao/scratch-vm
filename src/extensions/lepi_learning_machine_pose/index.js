@@ -186,14 +186,14 @@ class LepiLearningMachinePose extends EventEmitter {
                     }),
                     blockType: BlockType.COMMAND,
                 },
-                {
-                    opcode: 'loadPoseModel',
-                    text: formatMessage({
-                        id: 'lepi.loadPoseModel',
-                        default: '加载人体特征点模型',
-                    }),
-                    blockType: BlockType.COMMAND,
-                },
+                // {
+                //     opcode: 'loadPoseModel',
+                //     text: formatMessage({
+                //         id: 'lepi.loadPoseModel',
+                //         default: '加载人体特征点模型',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                // },
                 {
                     opcode: 'loadModelFromFile',
                     text: formatMessage({
@@ -278,41 +278,41 @@ class LepiLearningMachinePose extends EventEmitter {
                         }
                     }
                 },
-                {
-                    opcode: 'detectKeyPoints',
-                    text: formatMessage({
-                        id: 'lepi.detectKeyPoints',
-                        default: '进行特征点识别',
-                    }),
-                    blockType: BlockType.COMMAND,
-                },
-                {
-                    opcode: 'detectedKeyPoints',
-                    text: formatMessage({
-                        id: 'lepi.detectedKeyPoints',
-                        default: '识别到特征点 ?',
-                    }),
-                    blockType: BlockType.BOOLEAN,
-                }, {
-                    opcode: 'keyPointsData',
-                    text: formatMessage({
-                        id: 'lepi.keyPointsData',
-                        default: '[KEYPOINT] 特征点 [DATA]',
-                    }),
-                    blockType: BlockType.REPORTER,
-                    arguments: {
-                        KEYPOINT: {
-                            type: ArgumentType.STRING,
-                            // defaultValue: '分类1',
-                            menu: 'keypoints'
-                        },
-                        DATA: {
-                            type: ArgumentType.STRING,
-                            // defaultValue: '分类1',
-                            menu: 'keypointsValue'
-                        },
-                    }
-                },
+                // {
+                //     opcode: 'detectKeyPoints',
+                //     text: formatMessage({
+                //         id: 'lepi.detectKeyPoints',
+                //         default: '进行特征点识别',
+                //     }),
+                //     blockType: BlockType.COMMAND,
+                // },
+                // {
+                //     opcode: 'detectedKeyPoints',
+                //     text: formatMessage({
+                //         id: 'lepi.detectedKeyPoints',
+                //         default: '识别到特征点 ?',
+                //     }),
+                //     blockType: BlockType.BOOLEAN,
+                // }, {
+                //     opcode: 'keyPointsData',
+                //     text: formatMessage({
+                //         id: 'lepi.keyPointsData',
+                //         default: '[KEYPOINT] 特征点 [DATA]',
+                //     }),
+                //     blockType: BlockType.REPORTER,
+                //     arguments: {
+                //         KEYPOINT: {
+                //             type: ArgumentType.STRING,
+                //             // defaultValue: '分类1',
+                //             menu: 'keypoints'
+                //         },
+                //         DATA: {
+                //             type: ArgumentType.STRING,
+                //             // defaultValue: '分类1',
+                //             menu: 'keypointsValue'
+                //         },
+                //     }
+                // },
                 {
                     opcode: 'getProbability',
                     text: formatMessage({
@@ -341,14 +341,15 @@ class LepiLearningMachinePose extends EventEmitter {
                         default: '姿态识别置信度',
                     }),
                     blockType: BlockType.REPORTER,
-                }, {
-                    opcode: 'keyPointsScore',
-                    text: formatMessage({
-                        id: 'lepi.keyPointsScore',
-                        default: '特征点识别信度',
-                    }),
-                    blockType: BlockType.REPORTER,
-                },
+                }, 
+                // {
+                //     opcode: 'keyPointsScore',
+                //     text: formatMessage({
+                //         id: 'lepi.keyPointsScore',
+                //         default: '特征点识别信度',
+                //     }),
+                //     blockType: BlockType.REPORTER,
+                // },
 
             ],
             menus: {
