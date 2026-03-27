@@ -332,7 +332,8 @@ class LepiAudio extends EventEmitter {
                 this.mediaRecorder.onstop = (e) => {
                     console.log("data available after MediaRecorder.stop() called.");
 
-                    var blob = new Blob(this.chunks, { 'type': 'audio/ogg; codecs=opus' });
+                    var blob = new Blob(this.chunks, { 'type': 'audio/wav' });
+                    this.blob = blob
                     this.chunks = [];
                     this.recordingURL = URL.createObjectURL(blob);
                     // this.audio.src = this.recordingURL;
@@ -340,6 +341,12 @@ class LepiAudio extends EventEmitter {
 
                     if (save) {
                         if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+                            // 创建一个 a 标签，并设置 href 和 download 属性
+                            const el = document.createElement('a');
+                            // 设置 href 为图片经过 base64 编码后的字符串，默认为 png 格式
+                            el.href = this.recordingURL;
+                            el.download = file_name + ".wav";
+                            el.click()
                             resolve('未连接到主机')
                         } else {
                             this.saveRecording(blob, file_name).then((msg) => {

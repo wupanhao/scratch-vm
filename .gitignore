@@ -18,5 +18,8 @@ npm-*
 /playground
 /benchmark
 
+# secret
+api_key.js
+
 # Localization
 /translations

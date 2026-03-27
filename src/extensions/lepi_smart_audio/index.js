@@ -10,6 +10,7 @@ const getMonitorIdForBlockWithArgs = require('../../util/get-monitor-id');
 // const MathUtil = require('../../util/math-util');
 const { pinyin } = require('pinyin-pro');
 
+const voices = require('./voices')
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
  * @type {string}
@@ -82,6 +83,411 @@ async function delay_ms(ms = 1000) {
     })
 }
 
+const axios = require('axios').default;
+let onDetectResult = null
+
+const asr_url = 'http://agent.jszcai.com/v1/audio-to-text';
+const tts_url = 'http://agent.jszcai.com/v1/text-to-audio';
+const apiKey = require('./api_key');
+async function recognize_audio(blob) {
+    // 或直接使用文件对象
+    let formData = new FormData();
+    formData.append('file', blob, 'audio.wav');
+    console.log(formData)
+
+    // const response = await fetch(asr_url, {
+    //     method: 'POST',
+    //     headers: {
+    //         'Authorization': `Bearer ${apiKey}`,
+    //         // 注意: 不要手动设置 Content-Type，浏览器会自动设置 multipart/form-data 边界
+    //     },
+    //     body: formData,
+    // });
+    // const responseText = await response.text();
+    // console.log(responseText)
+    try {
+        let response = await axios.post(asr_url, formData, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+        console.log(response.data)
+        if (onDetectResult) {
+            onDetectResult(response.data.text)
+        }
+    } catch (error) {
+        console.log(error)
+        if (onDetectResult) {
+            onDetectResult('')
+        }
+    }
+}
+
+// ---------- 全局状态 ----------
+let mediaStream = null;             // 当前麦克风流
+let mediaRecorder = null;           // MediaRecorder 实例
+let audioChunks = [];               // 录音数据块 Blob 数组
+let isRecording = false;             // 是否正在录制中
+let silenceTimeout = null;           // 静音检测超时定时器
+let lastRecordingBlob = null;        // 最新录音的Blob (用于播放/保存)
+let lastRecordingURL = null;          // 对应的blob URL
+// 音频上下文 & 分析器 (用于音量检测)
+let audioContext = null;              // AudioContext 实例 (需用户手势后创建/恢复)
+let sourceNode = null;                // MediaStreamSourceNode
+let analyserNode = null;              // AnalyserNode 用于获取音量
+let isAnalyserSetup = false;           // 是否已连接分析器
+
+// 可配置的静音阈值参数
+const SILENCE_THRESHOLD = 0.012;       // 音量阈值 (RMS归一化值，经验值 0.012 较灵敏，0.008以下完全静音)
+const SILENCE_DELAY_MS = 1200;         // 静音持续 1.8 秒后自动停止录音
+
+// 为了防止刚开始录音因为环境底噪立刻停止，增加最小录音时长 (至少录制1.2秒)
+const MIN_RECORDING_DURATION_MS = 1800;
+let recordingStartTime = 0;             // 录音开始时间戳 (毫秒)
+
+// 辅助标志: 防止在停止清理过程中重复触发
+let isStoppingManually = false;          // 是否正在主动停止（避免递归）
+
+// 停止录音的核心逻辑: 保存blob并清理录音状态 (不关闭麦克风track)
+async function stopRecordingAndSave(triggerSource = "auto") {
+    // 防止重复停止
+    if (!isRecording || !mediaRecorder || mediaRecorder.state === 'inactive') {
+        console.log(`⚠️ 停止请求但未在录音中 (state: ${mediaRecorder?.state})`);
+        return;
+    }
+
+    // 避免并发停止 (例如超时和手动同时)
+    if (isStoppingManually) return;
+    isStoppingManually = true;
+
+    console.log(`🔴 ${triggerSource === 'auto' ? '自动检测静音' : '手动停止'} 录音中...`);
+
+    // 停止MediaRecorder (会触发dataavailable和stop事件)
+    // 注意: 在stop事件中我们会完成最终的blob组装与清理
+    mediaRecorder.stop();
+
+    // 注意: 不能立即重置 mediaRecorder 变量, 等待stop事件回调处理完成后重置。
+    // 实际清理在 mediaRecorder onstop 回调中进行。
+    // 但是为了防止超时重复stop, 将 isRecording 标记先置false避免额外停止
+    isRecording = false;
+
+    // 清除静音定时器
+    if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
+        silenceTimeout = null;
+    }
+
+    // 断开音频分析节点 (但保留媒体流track不关闭)
+    if (audioContext && sourceNode) {
+        try {
+            sourceNode.disconnect();
+            analyserNode?.disconnect();
+        } catch (e) { }
+        // 注意: 不要 close audioContext，因为之后重新录音时需要复用 (需要resume)
+        // 但是如果不关闭音频上下文，下次重新录音需要重新创建连接。为了简单，在停止录音后挂起上下文，下次再重建连接。
+        if (audioContext.state !== 'closed') {
+            // audioContext.suspend().catch(e => console.log(`挂起AudioContext失败:${e}`));
+            await closeMicrophone()
+        }
+    }
+    isAnalyserSetup = false;
+    console.log("⏹️ 已停止录音，正在处理音频...", false);
+
+    // 同时设置一个延迟, 确保如果MediaRecorder的stop事件因为某些原因没及时清理, 我们还是重置按钮状态
+    setTimeout(() => {
+        if (isStoppingManually) {
+            // 保险重置标志
+            isStoppingManually = false;
+        }
+    }, 500);
+}
+
+// 完全关闭麦克风(释放硬件资源)
+async function closeMicrophone() {
+    // 如果正在录音，先停止录音并等待清理
+    if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+        console.log("关闭麦克风前先停止录音");
+        await new Promise((resolve) => {
+            if (!isRecording) return resolve();
+            const onStopHandler = () => {
+                mediaRecorder.removeEventListener('stop', onStopHandler);
+                resolve();
+            };
+            mediaRecorder.addEventListener('stop', onStopHandler);
+            if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+            else resolve();
+        });
+    }
+
+    // 关闭音频上下文
+    if (audioContext) {
+        await audioContext.close().catch(e => console.log(`关闭音频上下文错误: ${e}`));
+        audioContext = null;
+    }
+
+    // 关闭所有麦克风轨道
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+            if (track.readyState === 'live') {
+                track.stop();
+                console.log(`关闭音频轨道: ${track.kind}`);
+            }
+        });
+        mediaStream = null;
+    }
+
+    sourceNode = null;
+    analyserNode = null;
+    isAnalyserSetup = false;
+
+}
+
+// 开始录音 (要求已经获取mediaStream)
+async function startRecording() {
+    if (!mediaStream) {
+        console.log("错误: 麦克风流不存在，请先请求麦克风", true);
+        return false;
+    }
+    if (isRecording) {
+        console.log("已有正在进行的录音，请先停止");
+        return false;
+    }
+
+    // 重置录音数据块
+    audioChunks = [];
+    recordingStartTime = Date.now();
+
+    // 配置MediaRecorder (支持常用音频编码)
+    let mimeType = '';
+    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/mpeg'];
+    for (let type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+            mimeType = type;
+            break;
+        }
+    }
+    try {
+        mediaRecorder = new MediaRecorder(mediaStream, { mimeType: mimeType });
+    } catch (e) {
+        console.log(`创建MediaRecorder失败: ${e}`, true);
+        return false;
+    }
+
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
+            console.log(`📦 收到音频数据块: ${(event.data.size / 1024).toFixed(1)}KB`);
+        }
+    };
+
+    mediaRecorder.onstop = () => {
+        // 当MediaRecorder停止，组装最终Blob
+        if (audioChunks.length === 0) {
+            console.log("警告: 录音数据为空，未生成文件", true);
+            console.log("⚠️ 录音数据为空，请重试", false);
+            isStoppingManually = false;
+            return;
+        }
+
+        // const blobType = mimeType || 'audio/webm';
+        const blobType = 'audio/wav'
+        const audioBlob = new Blob(audioChunks, { type: blobType });
+        console.log(`✅ 录音完成，文件大小: ${(audioBlob.size / 1024).toFixed(1)}KB, 格式: ${blobType}`);
+
+        // 检查最小录音时长，如果太短则丢弃并提示
+        const duration = Date.now() - recordingStartTime;
+        if (duration < MIN_RECORDING_DURATION_MS && audioBlob.size < 8000) {
+            console.log(`⏱️ 录音时长过短 (${duration}ms), 可能未检测到有效语音, 忽略此次录音`, true);
+            console.log("⏱️ 说话时间太短，请稍后重新录音", false);
+            lastRecordingBlob = null;
+            // 重置停止标志
+            isStoppingManually = false;
+            // 刷新状态准备就绪
+            if (onDetectResult) {
+                onDetectResult('')
+            }
+            return;
+        }
+
+        // 保存最新录音
+        console.log(`✨ 录音时长 ${(duration / 1000).toFixed(1)} 秒`);
+
+        // 重置停止标志
+        isStoppingManually = false;
+
+        // 清除任何残留静音超时
+        if (silenceTimeout) clearTimeout(silenceTimeout);
+        silenceTimeout = null;
+        recognize_audio(audioBlob)
+    };
+
+    mediaRecorder.start(200); // 每200ms触发dataavailable，保证实时切片用于分析和稳定性
+    isRecording = true;
+    console.log("🎙️ 录音中 · 正在聆听 ... (说完后自动停止)", true);
+    console.log("开始录音，启用智能静音检测 (1.8秒停顿自动结束)");
+
+    // 重新连接音频分析器 (音量检测)
+    if (audioContext && mediaStream) {
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+        // 断开旧的source再建新连接
+        if (sourceNode) {
+            try { sourceNode.disconnect(); } catch (e) { }
+        }
+        sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        analyserNode = audioContext.createAnalyser();
+        analyserNode.fftSize = 256;
+        const bufferLength = analyserNode.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        sourceNode.connect(analyserNode);
+        // 可选: 为了不输出音频到扬声器，不连接destination。如果希望静音，不连即可。
+        // 但为了性能没有连接扬声器
+        isAnalyserSetup = true;
+
+        // 启动音量检测循环
+        let lastNotSilentTime = Date.now();
+        let hasDetectedSpeech = false;   // 检测到过语音（开始说话标志）
+
+        const detectVolume = () => {
+            if (!isRecording || !analyserNode || !isAnalyserSetup) return;
+            if (!analyserNode) return;
+
+            try {
+                const dataArrayLocal = new Uint8Array(analyserNode.frequencyBinCount);
+                analyserNode.getByteTimeDomainData(dataArrayLocal);
+                let sumSquares = 0;
+                for (let i = 0; i < dataArrayLocal.length; i++) {
+                    let v = (dataArrayLocal[i] - 128) / 128;
+                    sumSquares += v * v;
+                }
+                let rms = Math.sqrt(sumSquares / dataArrayLocal.length);
+                // 当前音量级别
+                const currentVolume = rms;
+
+                // 动态阈值: 如果音量超过阈值则认为在说话
+                if (currentVolume > SILENCE_THRESHOLD) {
+                    // 有人在说话，记录最近非静音时间
+                    lastNotSilentTime = Date.now();
+                    if (!hasDetectedSpeech) {
+                        hasDetectedSpeech = true;
+                        console.log(`🗣️ 检测到语音输入 (音量:${currentVolume.toFixed(4)})`);
+                    }
+                    // 重置静音定时器（有声音就推迟停止）
+                    if (silenceTimeout) {
+                        clearTimeout(silenceTimeout);
+                        silenceTimeout = null;
+                    }
+                } else {
+                    // 处于静音或环境噪声状态，并且已经检测过至少一次语音（避免一启动就自动关闭）
+                    if (hasDetectedSpeech && isRecording) {
+                        if (!silenceTimeout) {
+                            // 开始静音计时器，等待指定时长后自动停止
+                            silenceTimeout = setTimeout(() => {
+                                if (isRecording && hasDetectedSpeech) {
+                                    console.log(`🤫 检测到持续静音 ${SILENCE_DELAY_MS / 1000} 秒，自动停止录音`);
+                                    stopRecordingAndSave("auto");
+                                }
+                                silenceTimeout = null;
+                            }, SILENCE_DELAY_MS);
+                        }
+                    }
+                }
+
+                // 动态展示UI可选: 显示小波纹效果（非必须，为了反馈可以在标题上体现）
+                // if (isRecording) {
+                //     const volumePercent = Math.min(100, Math.floor(currentVolume * 200));
+                // } else {
+                // }
+
+            } catch (e) {
+                // 忽略可能的断开错误
+            }
+            if (isRecording) {
+                setTimeout(detectVolume, 200)
+            }
+        };
+        setTimeout(detectVolume, 200);
+
+    } else {
+        console.log("警告: 音频上下文未初始化，无法进行音量检测，录音将依靠手动停止或最低时长后无法自动", true);
+        // 如果无法分析, 依然提供一个后备: 5秒后自动停止，避免永久录制，但用户手动也可以停止。
+        silenceTimeout = setTimeout(() => {
+            if (isRecording) {
+                console.log("⏰ 无音量检测超时后备机制，停止录音");
+                stopRecordingAndSave("auto-fallback");
+            }
+        }, 5000);
+    }
+
+    return true;
+}
+
+// 请求麦克风权限 + 初始化音频上下文（用于音量检测）
+async function requestMicrophoneAndInit() {
+    if (mediaStream && mediaStream.active) {
+        console.log("麦克风已存在，无需重复请求");
+        return true;
+    }
+    try {
+        // 请求麦克风权限，音频track
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        mediaStream = stream;
+        console.log("🎤 麦克风权限已获取，音频流就绪");
+
+        // 创建AudioContext (chrome要求必须在用户手势下创建或恢复)
+        if (audioContext && audioContext.state !== 'closed') {
+            await audioContext.close();
+        }
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // 由于用户点击按钮时调用此函数，所以可以启动音频上下文
+        await audioContext.resume();
+        console.log(`音频上下文状态: ${audioContext.state}`);
+
+        return true;
+    } catch (err) {
+        console.log(`麦克风错误: ${err.name} - ${err.message}`, true);
+        console.log("❌ 无法获取麦克风，请检查权限", false);
+        return false;
+    }
+}
+
+// 主按钮行为: 打开麦克风 -> 开始录音（若已存在麦克风并且没有录音则开始录音）
+async function requestMicrophone(callback) {
+    // 如果当前正在录音 -> 手动停止录音
+    if (isRecording) {
+        // console.log("手动停止录音 (用户点击停止)");
+        // await stopRecordingAndSave("manual");
+        return;
+    }
+
+    // 如果不存在麦克风流，先请求权限
+    if (!mediaStream || !mediaStream.active) {
+        const granted = await requestMicrophoneAndInit();
+        if (!granted) return;
+    } else {
+        // 已经有麦克风，但是可能audioContext挂起，恢复一下
+        if (audioContext && audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+    }
+
+    // 确保没有任何旧录音分析残留，清理之前的音量检测定时器
+    if (silenceTimeout) {
+        clearTimeout(silenceTimeout);
+        silenceTimeout = null;
+    }
+    onDetectResult = callback
+    // 开始新的录音
+    const started = await startRecording();
+    if (!started) {
+        console.log("录音启动失败");
+    }
+}
+
+
 class LepiSmartAudio extends EventEmitter {
     constructor(runtime) {
         super();
@@ -93,7 +499,10 @@ class LepiSmartAudio extends EventEmitter {
         this.commandResult = ''
         this.recognitionEnd = false;
         this.recognitionResult = '';
-
+        this.audio = document.createElement('audio')
+        this.audio.display = 'none'
+        this.audio.autoplay = true
+        this.tts_busy = false
         this.hotwordList = []
         this.model_dir = `/home/pi/Lepi_Data/ros/smart_audio_node/resources/models`
 
@@ -138,7 +547,69 @@ class LepiSmartAudio extends EventEmitter {
             blockIconURI: blockIconURI,
             // showStatusButton: true,
             blocks: [
-
+                {
+                    opcode: 'SpeechRecognitionOnline',
+                    text: formatMessage({
+                        id: 'lepi.SpeechRecognitionOnline',
+                        default: '在线语音识别',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'TTSOnline',
+                    text: formatMessage({
+                        id: 'lepi.TTSOnline',
+                        default: '在线语音朗读[TEXT], 音色[VOICE]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'lepi.hello',
+                                default: '你好',
+                            })
+                        }, VOICE: {
+                            type: ArgumentType.STRING,
+                            menu: 'coze_voices',
+                            defaultValue: '7426725529589596187'
+                        }
+                    }
+                },
+                {
+                    opcode: 'StopTTSOnline',
+                    text: formatMessage({
+                        id: 'lepi.StopTTSOnline',
+                        default: '停止在线语音朗读',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'TTSOnlineSave',
+                    text: formatMessage({
+                        id: 'lepi.TTSOnlineSave',
+                        default: '在线语音合成[TEXT], 音色[VOICE], 保存为[FILE_NAME].mp3',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'lepi.hello',
+                                default: '你好',
+                            })
+                        }, VOICE: {
+                            type: ArgumentType.STRING,
+                            menu: 'coze_voices',
+                            defaultValue: '7426725529589596187'
+                        },
+                        FILE_NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: '-'
+                        }
+                    }
+                },
+                '---',
                 {
                     opcode: 'LocalSpeechRecognition',
                     text: formatMessage({
@@ -193,7 +664,7 @@ class LepiSmartAudio extends EventEmitter {
                     }),
                     blockType: BlockType.BOOLEAN,
                 },
-
+                '---',
                 {
                     opcode: 'SpeechRecognitionOffline',
                     text: formatMessage({
@@ -334,6 +805,7 @@ class LepiSmartAudio extends EventEmitter {
                 speakers: 'formatSpeakerList',
                 grammer: 'formatGrammerList',
                 hotword: 'formatHotwordList',
+                coze_voices: voices
             },
 
         };
@@ -549,6 +1021,128 @@ class LepiSmartAudio extends EventEmitter {
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel()
         }
+    }
+
+    SpeechRecognitionOnline() {
+        return new Promise(resolve => {
+            this.recognitionEnd = false
+            requestMicrophone((text) => {
+                this.recognitionResult = text
+                if (text.length > 0) {
+                    this.recognitionEnd = true
+                }
+                resolve()
+            })
+        })
+    }
+    // curl -o text-to-audio.mp3 -X POST 'http://agent.jszcai.com/v1/text-to-audio' \
+    // --header 'Authorization: Bearer {api_key}' \
+    // --header 'Content-Type: application/json' \
+    // --data-raw '{
+    //   "text": "Hello Dify",
+    //   "user": "abc-123",
+    // }'
+    async TTSOnline(args) {
+        let text = args.TEXT.trim()
+        let voice_id = args.VOICE
+        if (text.length == 0 || this.tts_busy) {
+            return
+        } else {
+            this.tts_busy = true
+        }
+        try {
+            let response = await axios.post(tts_url, { text: JSON.stringify({ text, voice_id }), "user": "lepi scratch client" }, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                responseType: 'blob'
+            })
+            console.log(response)
+
+            return new Promise(resolve => {
+                let src = URL.createObjectURL(response.data)
+                this.audio.src = src
+                // this.audio.play()
+                this.audio.onended = () => {
+                    URL.revokeObjectURL(src)
+                    this.tts_busy = false
+                    resolve()
+                }
+                this.audio.onpause = () => {
+                    URL.revokeObjectURL(src)
+                    this.tts_busy = false
+                    resolve()
+                }
+            })
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    StopTTSOnline() {
+        if (this.tts_busy) {
+            this.audio.pause()
+        }
+    }
+
+    async TTSOnlineSave(args, util) {
+        let text = args.TEXT.trim()
+        let voice_id = args.VOICE
+        let file_name = args.FILE_NAME
+        if (file_name == '-') {
+            file_name = text
+        }
+
+        if (text.length == 0) {
+            return
+        }
+        try {
+            let response = await axios.post(tts_url, { text: JSON.stringify({ text, voice_id }), "user": "lepi scratch client" }, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                responseType: 'blob'
+            })
+            console.log(response)
+            return new Promise(resolve => {
+                let audioURL = URL.createObjectURL(response.data);
+                // this.audio.src = this.recordingURL;
+                // this.audio.play()
+
+
+                if (!(this.runtime.ros && this.runtime.ros.isConnected())) {
+                    // 创建一个 a 标签，并设置 href 和 download 属性
+                    const el = document.createElement('a');
+                    // 设置 href 为图片经过 base64 编码后的字符串，默认为 png 格式
+                    el.href = audioURL;
+                    el.download = file_name + ".mp3";
+                    el.click()
+                    resolve('下载本地')
+                } else {
+                    this.saveAudio(response.data, file_name).then((msg) => {
+                        resolve(msg)
+                    })
+                }
+            })
+        } catch (error) {
+            console.log(error)
+        }
+
+    }
+
+    saveAudio(blob, file_name) {
+
+        return new Promise(resolve => {
+            var reader = new FileReader();
+            reader.onload = (e) => {
+                this.runtime.ros.saveFileData(file_name + ".mp3", e.target.result);
+                resolve('保存主机成功')
+            }
+            reader.readAsDataURL(blob);
+        })
     }
 }
 
