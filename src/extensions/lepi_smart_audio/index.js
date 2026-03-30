@@ -1026,6 +1026,7 @@ class LepiSmartAudio extends EventEmitter {
     SpeechRecognitionOnline() {
         return new Promise(resolve => {
             this.recognitionEnd = false
+            this.recognitionResult = ''
             requestMicrophone((text) => {
                 this.recognitionResult = text
                 if (text.length > 0) {
