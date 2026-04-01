@@ -16,6 +16,8 @@ class ros_client {
     this.btnHandler = btnHandler
     this.sensorStatusHandler = null
     this.ros = null
+    this.extensions = []
+    this.nodes = []
     this.setSensorStatusHandler = this.setSensorStatusHandler.bind(this)
     // this.conectToRos()
   }

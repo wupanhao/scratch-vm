@@ -34,6 +34,37 @@ const Base64Util = require('./util/base64-util');
 // require("babel-polyfill");
 
 const RosClient = require('./ros-client')
+const Swal = require('sweetalert2')
+const extensionMap = {
+    // "lepiCamera": "摄像头",
+    "lepiApriltagDetect": "标签检测",
+    "lepiColorDetect": "颜色检测",
+    "lepiFaceRecognize": "人脸识别",
+    "lepiBarcodeScan": "二维码扫描",
+    "lepiTextRecognize": "文本识别",
+    "lepiImageProcess": "图像处理",
+    // "lepiSmartAudio": "智能语音",
+    "lepiObjectDetection": "目标检测",
+    "lepiImageClassify": "图像分类",
+    "lepiTransferLearning": "迁移学习",
+    "lepiHandDetect": "手势识别",
+    "lepiPoseEstimate": "姿态估计",
+    "lepiRFID": "RFID读卡器",
+    "lepiBLE": "蓝牙通信",
+    "lepiJoystick": "游戏手柄",
+    "onegpioRpi": "GPIO",
+    "lepiBalanceCar": "平衡车",
+    "lepiPupper": "四足机器人",
+    "lepiHexapod": "六足机器人",
+}
+const need_lepi = {
+    "lepi": true,
+    "lepiActuator": true,
+    "lepiSensor": true,
+    "lepiVariable": true,
+    "lepiSerial": true,
+    "lepiComm": true,
+}
 
 // 对Date的扩展，将 Date 转化为指定格式的String
 // 月(M)、日(d)、小时(h)、分(m)、秒(s)、季度(q) 可以用 1-2 个占位符，
@@ -835,8 +866,67 @@ class VirtualMachine extends EventEmitter {
                         log.error(e);
                     }
                 }
+                console.log('called installTargets', extensions.extensionIDs)
+                this.ros.extensions = []
+                for(let extension of extensions.extensionIDs){
+                    this.ros.extensions.push(extension)
+                }
+                this.make_sure_extension_launched(this.ros.extensions)
+
                 return this.installTargets(targets, extensions, true);
             });
+    }
+
+    make_sure_extension_launched(extensionIDs, hint = "运行该程序"){
+        this.ros.nodes = []
+        let icon = ""
+        if(window.innerHeight > 320){
+            icon = "info"
+        }
+        if(this.ros && this.ros.isConnected()){
+            this.runtime.ros.getNodeList().then(data => {
+                let totalNodes = Object.values(data)
+                const aliveNodes = totalNodes.filter(node => node.status == '已启动').map(node => node.text)
+                console.log(aliveNodes)
+                for(let extension of extensionIDs){
+                    // this.ros.extensions.push(extension)
+                    if(extensionMap[extension] && aliveNodes.indexOf(extensionMap[extension]) < 0){
+                        this.ros.nodes.push(extensionMap[extension])
+                    }
+                }
+                if(this.ros.nodes.length > 0){
+                    Swal.fire({
+                        title: `${this.ros.nodes.join(',')} 扩展未启动`,
+                        text: `需要启动对应扩展才能${hint}`,
+                        icon: icon
+                    });
+                }
+            })
+        }else{
+            for(let extension of extensionIDs){
+                if(extensionMap[extension]){
+                    this.ros.nodes.push(extensionMap[extension])
+                }
+            }
+            if(this.ros.nodes.length > 0){
+                Swal.fire({
+                    title: `主机未连接`,
+                    text: `需要连接主机并启动 "${this.ros.nodes.join(',')}" 扩展才能${hint}`,
+                    icon: icon
+                });
+            }else{
+                for(let extension of extensionIDs){
+                    if(need_lepi[extension]){
+                        Swal.fire({
+                            title: `主机未连接`,
+                            text: `需要连接主机才能${hint}`,
+                            icon: icon
+                        });
+                        return
+                    }
+                }
+            }
+        }
     }
 
     /**
