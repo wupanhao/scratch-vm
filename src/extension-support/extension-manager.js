@@ -34,6 +34,7 @@ const defaultBuiltinExtensions = {
     lepiAudio: () => require('../extensions/lepi_audio'),
     lepiBLE: () => require('../extensions/lepi_ble'),
     lepiCamera: () => require('../extensions/lepi_camera'),
+    lepiLearningMachineHand: () => require('../extensions/lepi_learning_machine_hand'),
     lepiLearningMachinePose: () => require('../extensions/lepi_learning_machine_pose'),
     lepiLearningMachineImage: () => require('../extensions/lepi_learning_machine_image'),
     lepiLearningMachineAudio: () => require('../extensions/lepi_learning_machine_audio'),
