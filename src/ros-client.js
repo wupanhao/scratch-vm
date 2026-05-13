@@ -4,12 +4,12 @@ const ROS_NAMESPACE = '/ubiquityrobot/'
 class ros_client {
   constructor(ros_base_ip, btnHandler = null) {
     this.url = 'ws://' + ros_base_ip + ':9090'
-    if (window.location.protocol == 'https:') {
-      this.url = 'wss://' + ros_base_ip + ':9443'
-    }
-    if (window.location.hostname == 'appassets.androidplatform.net') {
-      this.url = 'ws://' + ros_base_ip + ':9090'
-    }
+    // if (window.location.protocol == 'https:') {
+    //   this.url = 'wss://' + ros_base_ip + ':9443'
+    // }
+    // if (window.location.hostname == 'appassets.androidplatform.net') {
+    //   this.url = 'ws://' + ros_base_ip + ':9090'
+    // }
     this.ip = ros_base_ip
     this.btnListener = null
     this.sensorStatusListener = null

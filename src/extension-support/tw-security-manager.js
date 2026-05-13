@@ -28,7 +28,7 @@
  * ```
  */
 
-const extensionURLPrefix = window.location.href + '/../static/models/extensions/'
+const extensionURLPrefix = `${window.location.origin}${window.location.pathname}` + '/../static/models/extensions/'
 const localFiles = ['base.js', 'bitwise.js', 'dictionaries.js', 'encoding.js', 'files.js', 'http.js', 'iframe.js', 'json.js', 'local-storage.js', 'math.js', 'regexp.js', 'text.js', 'utilities.js', 'ws.js', 'consoles.js', 'xml.js', 'Video.js']
 
 class SecurityManager {
@@ -60,6 +60,7 @@ class SecurityManager {
      * @returns {Promise<string>|string} The URL to actually load.
      */
     rewriteExtensionURL (extensionURL) {
+        // console.log(extensionURL)
         if (location.protocol == 'tw-editor:'){
             return Promise.resolve(extensionURL);
         }

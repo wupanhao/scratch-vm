@@ -528,6 +528,7 @@ class LepiGoogleAI extends EventEmitter {
                         },
                     }
                 },
+                '---',
                 {
                     opcode: 'detectFaces',
                     text: '检测人脸',
@@ -573,6 +574,7 @@ class LepiGoogleAI extends EventEmitter {
                         },
                     }
                 },
+                '---',
                 {
                     opcode: 'detectFaceMesh',
                     text: '检测人脸网格',
@@ -607,6 +609,7 @@ class LepiGoogleAI extends EventEmitter {
                         }
                     }
                 },
+                '---',
                 {
                     opcode: 'detectHands',
                     text: '检测手势',
@@ -634,6 +637,7 @@ class LepiGoogleAI extends EventEmitter {
                         }
                     }
                 },
+                '---',
                 {
                     opcode: 'detectPose',
                     text: '检测身体姿态',
@@ -659,6 +663,7 @@ class LepiGoogleAI extends EventEmitter {
                         }
                     }
                 },
+                '---',
                 {
                     opcode: 'detectHolistic',
                     text: '检测全身',

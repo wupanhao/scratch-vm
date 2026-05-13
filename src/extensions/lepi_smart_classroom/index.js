@@ -50,9 +50,9 @@ class LepiSmartClassroom extends EventEmitter {
         this.user = ['1731939323598532610']
 
         this.serverUrl = `ws://${this.runtime.vm.LEPI_IP}:8083/mqtt`
-        if (location.protocol == "https:") {
-            this.serverUrl = `wss://${this.runtime.vm.LEPI_IP}:443/mqtt`
-        }
+        // if (location.protocol == "https:") {
+        //     this.serverUrl = `wss://${this.runtime.vm.LEPI_IP}:443/mqtt`
+        // }
 
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             this.connectToMQTTBroker({ URL: this.serverUrl })
@@ -634,9 +634,9 @@ class LepiSmartClassroom extends EventEmitter {
         let sensorTopicList = this.sensorDevice.map(dev => dev.topic)
 
         this.socketUrl = `ws://${this.client.options.hostname}:8088/api`
-        if (location.protocol == "https:") {
-            this.socketUrl = `wss://${this.client.options.hostname}:443/api`
-        }
+        // if (location.protocol == "https:") {
+        //     this.socketUrl = `wss://${this.client.options.hostname}:443/api`
+        // }
 
         this.socket = new WebSocket(this.socketUrl)
         console.log(sensorTopicList, this.socket)

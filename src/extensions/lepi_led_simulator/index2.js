@@ -22,9 +22,9 @@ class LepiLedSimulator extends EventEmitter {
          */
         this.runtime = runtime;
         this.serverUrl = `ws://${this.runtime.vm.LEPI_IP}:8083/mqtt`
-        if (location.protocol == "https:") {
-            this.serverUrl = `wss://${this.runtime.vm.LEPI_IP}:443/mqtt`
-        }
+        // if (location.protocol == "https:") {
+        //     this.serverUrl = `wss://${this.runtime.vm.LEPI_IP}:443/mqtt`
+        // }
 
         // MQTT client
         this.client = null;
@@ -429,9 +429,9 @@ class LepiLedSimulator extends EventEmitter {
         let broker = this.serverUrl
         if (args.BROKER) {
             broker = `ws://${args.BROKER}:8083/mqtt`
-            if (location.protocol == "https:") {
-                broker = `wss://${args.BROKER}:443/mqtt`
-            }
+            // if (location.protocol == "https:") {
+            //     broker = `wss://${args.BROKER}:443/mqtt`
+            // }
         }
         const clientId = this.config.clientId;
         const commandTopic = args.COMMANDTOPIC || this.config.commandTopic;

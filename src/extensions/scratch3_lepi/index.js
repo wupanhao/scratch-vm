@@ -6,6 +6,7 @@ const Menu = require('../../util/menu');
 const formatMessage = require('format-message');
 const BLE = require('../../io/ws');
 // const Base64Util = require('../../util/base64-util');
+const Swal = require('sweetalert2')
 
 // const StageLayering = require('../../engine/stage-layering')
 // const getMonitorIdForBlockWithArgs = require('../../util/get-monitor-id');
@@ -637,6 +638,25 @@ class Scratch3LepiBlocks {
                 //     }
                 // },
                 {
+                    opcode: 'installWebApp',
+                    text: formatMessage({
+                        id: 'lepi.installWebApp',
+                        default: '添加网页应用, 名称[NAME] URL[URL]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        NAME: {
+                            type: ArgumentType.STRING,
+                            defaultValue: '名称'
+                        },
+                        URL: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'https://just-an-example.com/'
+                        },
+                    }
+                },
+                '---',
+                {
                     opcode: 'openAudioAnalyzer',
                     text: formatMessage({
                         id: 'lepi.openAudioAnalyzer',
@@ -1194,7 +1214,7 @@ class Scratch3LepiBlocks {
                 ssid: args.SSID,
                 psk: args.PASSWD
             }
-            this.runtime.ros.proxyPost(URL, 'POST', data).then(response => {
+            this.runtime.ros.proxyPost(URL, 'POST', JSON.stringify(data)).then(response => {
                 console.log('response', response)
                 let data = JSON.parse(response)
                 if (data && data.ip_address) {
@@ -1497,6 +1517,71 @@ class Scratch3LepiBlocks {
             return bat['charging_status']
         }
         return JSON.stringify(bat)
+    }
+
+    installWebApp(args) {
+        return new Promise(resolve => {
+            var URL = 'http://' + this.LEPI_IP + ':8000/installed-apps/web'
+
+            var data = {
+                name: args.NAME.trim(),
+                url: args.URL.trim()
+            }
+            if (data.name.length > 0 && data.url.length > 0) {
+                this.runtime.ros.proxyPost(URL, 'POST', JSON.stringify(data)).then(response => {
+                    console.log('response', response)
+                    let data = JSON.parse(response)
+                    if (data && data.error) {
+                        Swal.fire({
+                            title: `添加失败`,
+                            text: data.error,
+                            icon: 'info'
+                        });
+                        resolve(formatMessage({
+                            id: 'lepi.failed',
+                            default: 'Failed',
+                        }))
+                    } else if (data && data.msg) {
+                        Swal.fire({
+                            title: `添加失败`,
+                            text: data.msg,
+                            icon: 'info'
+                        });
+                        resolve(formatMessage({
+                            id: 'lepi.failed',
+                            default: 'Failed',
+                        }))
+                    } else {
+                        Swal.fire({
+                            title: `添加成功`,
+                            icon: 'success'
+                        });
+                        resolve(formatMessage({
+                            id: 'lepi.ok',
+                            default: 'OK',
+                        }))
+                    }
+                }).catch(error => {
+                    console.log('error', error)
+                    Swal.fire({
+                        title: `添加失败`,
+                        icon: 'info'
+                    });
+                    resolve(formatMessage({
+                        id: 'lepi.error',
+                        default: 'Error',
+                    }))
+                })
+            } else {
+                Swal.fire({
+                    title: `参数错误`,
+                    text: `需要填写名称和URL`,
+                    icon: 'info'
+                });
+                resolve()
+            }
+
+        })
     }
 }
 
