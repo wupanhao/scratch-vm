@@ -518,6 +518,250 @@ function blobToBase64(blob) {
     })
 }
 
+function base64ToArrayBuffer(base64) {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// streaming-tts-player.js
+class StreamingTTSPlayer {
+    constructor() {
+        this.audioContext = null;
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.audioQueue = [];
+        this.currentSource = null;
+        this.nextStartTime = 0;
+        this.sampleRate = 24000;
+        this.channels = 1;
+        this.totalChunks = 0;
+        this.processedChunks = 0;
+        this.onProgressCallback = null;
+        this.onEndCallback = null;
+        this.onErrorCallback = null;
+    }
+
+    // 初始化音频上下文
+    async init() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        // 确保音频上下文处于运行状态
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+
+        return this.audioContext;
+    }
+
+    // 设置回调函数
+    onProgress(callback) {
+        this.onProgressCallback = callback;
+    }
+
+    onEnd(callback) {
+        this.onEndCallback = callback;
+    }
+
+    onError(callback) {
+        this.onErrorCallback = callback;
+    }
+
+    // 将PCM数据转换为AudioBuffer
+    pcmToAudioBuffer(pcmData, sampleRate, channels) {
+        // 将Uint8Array转换为Float32Array
+        const int16Array = new Int16Array(pcmData);
+        const audioBuffer = this.audioContext.createBuffer(channels, int16Array.length, sampleRate);
+
+        for (let channel = 0; channel < channels; channel++) {
+            const channelData = audioBuffer.getChannelData(channel);
+            for (let i = 0; i < int16Array.length; i++) {
+                // 将Int16 (-32768 to 32767) 转换为Float32 (-1.0 to 1.0)
+                channelData[i] = int16Array[i] / 32768.0;
+            }
+        }
+
+        return audioBuffer;
+    }
+
+    // 播放单个音频块
+    async playAudioBuffer(audioBuffer) {
+        return new Promise((resolve) => {
+            const source = this.audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(this.audioContext.destination);
+
+            // 计算播放时间
+            const currentTime = this.audioContext.currentTime;
+            const startTime = Math.max(currentTime, this.nextStartTime);
+
+            source.start(startTime);
+            this.nextStartTime = startTime + audioBuffer.duration;
+
+            source.onended = () => {
+                resolve();
+            };
+
+            this.currentSource = source;
+        });
+    }
+
+    // 处理队列中的音频块
+    async processQueue() {
+        while (this.audioQueue.length > 0 && !this.isPaused) {
+            const chunk = this.audioQueue.shift();
+
+            try {
+                const audioBuffer = this.pcmToAudioBuffer(
+                    chunk.data,
+                    chunk.sampleRate || this.sampleRate,
+                    chunk.channels || this.channels
+                );
+
+                await this.playAudioBuffer(audioBuffer);
+                this.processedChunks++;
+
+                // 触发进度回调
+                if (this.onProgressCallback) {
+                    const progress = this.totalChunks > 0
+                        ? (this.processedChunks / this.totalChunks) * 100
+                        : 0;
+                    this.onProgressCallback(progress, this.processedChunks, this.totalChunks);
+                }
+            } catch (error) {
+                console.error('播放音频块失败:', error);
+                if (this.onErrorCallback) {
+                    this.onErrorCallback(error);
+                }
+            }
+        }
+
+        // 队列处理完成
+        if (this.audioQueue.length === 0 && this.onEndCallback) {
+            this.onEndCallback();
+        }
+    }
+
+    // 添加音频数据到队列（立即播放）
+    addChunk(audioData, sampleRate = 24000, channels = 1) {
+        if (!this.isPlaying && !this.isPaused) {
+            this.start();
+        }
+
+        this.audioQueue.push({
+            data: audioData,
+            sampleRate: sampleRate,
+            channels: channels
+        });
+
+        // 如果当前没有在处理队列，开始处理
+        if (!this.processingPromise) {
+            this.processingPromise = this.processQueue().finally(() => {
+                this.processingPromise = null;
+            });
+        }
+    }
+
+    // 开始播放
+    async start() {
+        if (this.isPlaying) return;
+
+        await this.init();
+        this.isPlaying = true;
+        this.isPaused = false;
+        this.nextStartTime = this.audioContext.currentTime;
+        this.processedChunks = 0;
+
+        // 开始处理队列
+        if (this.audioQueue.length > 0 && !this.processingPromise) {
+            this.processingPromise = this.processQueue().finally(() => {
+                this.processingPromise = null;
+            });
+        }
+    }
+
+    // 暂停播放
+    pause() {
+        if (!this.isPlaying || this.isPaused) return;
+
+        this.isPaused = true;
+        if (this.currentSource) {
+            this.currentSource.stop();
+            this.currentSource = null;
+        }
+
+        // 暂停音频上下文
+        if (this.audioContext) {
+            this.audioContext.suspend();
+        }
+    }
+
+    // 恢复播放
+    async resume() {
+        if (!this.isPlaying || !this.isPaused) return;
+
+        this.isPaused = false;
+
+        // 恢复音频上下文
+        if (this.audioContext) {
+            await this.audioContext.resume();
+        }
+
+        // 重新计算播放时间
+        this.nextStartTime = this.audioContext.currentTime;
+
+        // 继续处理队列
+        if (this.audioQueue.length > 0 && !this.processingPromise) {
+            this.processingPromise = this.processQueue().finally(() => {
+                this.processingPromise = null;
+            });
+        }
+    }
+
+    // 停止播放
+    stop() {
+        this.isPlaying = false;
+        this.isPaused = false;
+
+        if (this.currentSource) {
+            this.currentSource.stop();
+            this.currentSource = null;
+        }
+
+        this.audioQueue = [];
+        this.totalChunks = 0;
+        this.processedChunks = 0;
+        this.nextStartTime = 0;
+
+        if (this.processingPromise) {
+            // 清空处理中的Promise
+            this.processingPromise = null;
+        }
+
+        // 重置音频上下文
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+        this.onEndCallback()
+    }
+
+    // 设置音频参数
+    setAudioParams(sampleRate, channels = 1) {
+        this.sampleRate = sampleRate;
+        this.channels = channels;
+    }
+
+    // 设置总块数（用于进度计算）
+    setTotalChunks(total) {
+        this.totalChunks = total;
+    }
+}
 
 class LepiSmartAudio extends EventEmitter {
     constructor(runtime) {
@@ -536,6 +780,8 @@ class LepiSmartAudio extends EventEmitter {
         this.tts_busy = false
         this.hotwordList = []
         this.model_dir = `/home/pi/Lepi_Data/ros/smart_audio_node/resources/models`
+        // 创建新的播放器实例
+        this.player = null;
 
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             this.subHotwordDetect()
@@ -599,6 +845,27 @@ class LepiSmartAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.TTSOnline',
                         default: '在线语音朗读[TEXT], 音色[VOICE]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'lepi.hello',
+                                default: '你好',
+                            })
+                        }, VOICE: {
+                            type: ArgumentType.STRING,
+                            menu: 'coze_voices',
+                            defaultValue: '7426725529589596187'
+                        }
+                    }
+                },
+                {
+                    opcode: 'TTSOnlineStream',
+                    text: formatMessage({
+                        id: 'lepi.TTSOnlineStream',
+                        default: '在线语音朗读(流式)[TEXT], 音色[VOICE]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -1012,6 +1279,10 @@ class LepiSmartAudio extends EventEmitter {
 
     async SpeakOffline(args) {
 
+        if (!this.SpeakEnd()) {
+            return
+        }
+
         if (this.runtime.ros && this.runtime.ros.isConnected() && (this.runtime.vm.ros.ip == 'localhost' || this.runtime.vm.ros.ip == '127.0.0.1')) {
             // On Lepi
             let text = args.TEXT.trim()
@@ -1054,8 +1325,13 @@ class LepiSmartAudio extends EventEmitter {
     }
 
     SpeakEnd() {
-        return window.speechSynthesis.speaking == false
+        if (this.tts_busy) {
+            return false
+        } else {
+            return window.speechSynthesis.speaking == false
+        }
     }
+
     StopSpeak() {
         if (window.speechSynthesis) {
             window.speechSynthesis.cancel()
@@ -1395,9 +1671,112 @@ class LepiSmartAudio extends EventEmitter {
         }
     }
 
+    async TTSOnlineStream(args) {
+        let text = args.TEXT.trim()
+        let voice_id = args.VOICE
+        if (text.length == 0 || this.tts_busy) {
+            return
+        } else {
+            this.tts_busy = true
+        }
+        return new Promise(resolve => {
+            // 停止当前播放
+            // if (this.player) {
+            //     this.player.stop();
+            // }
+
+
+            this.player = new StreamingTTSPlayer()
+
+            // 设置回调
+            this.player.onProgress((progress, processed, total) => {
+                // console.log(progress, processed, total);
+            });
+
+            this.player.onEnd(() => {
+                console.log('播放完成');
+                this.tts_busy = false
+                resolve()
+            });
+
+            this.player.onError((error) => {
+                console.error('播放错误:', error);
+                console.log(`错误: ${error.message}`);
+            });
+
+            let chunkCount = 0;
+
+            const url = `wss://agent.jszcai.com/stream-audio/v1/audio/speech`;
+            const ws = new WebSocket(url);
+
+            ws.addEventListener('open', () => {
+                console.log('Connected to server.');
+
+            });
+
+            ws.addEventListener('close', () => {
+                console.log('Connection closed.');
+            });
+
+            ws.addEventListener('message', (message) => {
+                let msg = JSON.parse(message.data.toString())
+                // console.log(msg);
+                if (msg.event_type == 'speech.created') {
+                    let format = {
+                        "id": crypto.randomUUID(),
+                        "event_type": "speech.update",
+                        "data": {
+                            "output_audio": { "codec": "pcm", "voice_id": voice_id }
+                        },
+                    }
+                    ws.send(JSON.stringify(format))
+                    // 发送文本内容
+                    let content = {
+                        "id": crypto.randomUUID(),
+                        "event_type": "input_text_buffer.append",
+                        "data": { "delta": text },
+                    }
+                    ws.send(JSON.stringify(content))
+
+                    // 完成输入
+                    let complete = {
+                        "id": crypto.randomUUID(),
+                        "event_type": "input_text_buffer.complete",
+                    }
+                    ws.send(JSON.stringify(complete))
+
+                }
+                if (msg.event_type == 'speech.audio.update') {
+                    if (!this.tts_busy) {
+                        ws.close()
+                    } else {
+                        chunkCount++
+                        // 处理base64音频片段
+                        let b64 = msg.data.delta
+                        let value = base64ToArrayBuffer(b64)
+                        // console.log(b64,value)
+                        // 立即添加到播放队列
+                        this.player.addChunk(value, 24000, 1);
+                    }
+                }
+                if (msg.event_type === 'speech.audio.completed') {
+                    this.player.setTotalChunks(chunkCount)
+                    ws.close()
+                }
+                // event_type: 'transcriptions.created'
+            });
+        })
+
+
+    }
+
     StopTTSOnline() {
         if (this.tts_busy) {
             this.audio.pause()
+        }
+        if (this.player) {
+            this.tts_busy = false
+            this.player.stop()
         }
     }
 
