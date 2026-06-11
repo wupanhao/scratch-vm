@@ -137,7 +137,7 @@ let audioContext = null;              // AudioContext 实例 (需用户手势后
 let sourceNode = null;                // MediaStreamSourceNode
 let analyserNode = null;              // AnalyserNode 用于获取音量
 let isAnalyserSetup = false;           // 是否已连接分析器
-
+let scriptProcessor = null;
 // 可配置的静音阈值参数
 const SILENCE_THRESHOLD = 0.012;       // 音量阈值 (RMS归一化值，经验值 0.012 较灵敏，0.008以下完全静音)
 const SILENCE_DELAY_MS = 1200;         // 静音持续 1.8 秒后自动停止录音
@@ -487,6 +487,37 @@ async function requestMicrophone(callback) {
     }
 }
 
+// 辅助函数：将 Int16Array 转换为 Base64
+function int16ArrayToBase64(int16Array) {
+    const uint8Array = new Uint8Array(int16Array.buffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+}
+
+
+/**
+* file或blob转base64
+* @param {*} blob file或者blob
+* @param {*} callback function (data)通过参数获得base64
+*/
+function blobToBase64(blob) {
+    return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+            // "data:audio/webm;codecs=opus;base64,jIEAtID7A...."
+            console.log(reader.result)
+            console.log(reader.result.slice(35))
+            resolve(reader.result.slice(35));
+        });
+        reader.readAsDataURL(blob);
+    })
+}
+
 
 class LepiSmartAudio extends EventEmitter {
     constructor(runtime) {
@@ -552,6 +583,14 @@ class LepiSmartAudio extends EventEmitter {
                     text: formatMessage({
                         id: 'lepi.SpeechRecognitionOnline',
                         default: '在线语音识别',
+                    }),
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'SpeechRecognitionOnlineStream',
+                    text: formatMessage({
+                        id: 'lepi.SpeechRecognitionOnlineStream',
+                        default: '在线语音识别(流式)',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -1035,6 +1074,280 @@ class LepiSmartAudio extends EventEmitter {
                 resolve()
             })
         })
+    }
+    SpeechRecognitionOnlineStream() {
+        return new Promise(async (resolve) => {
+            this.recognitionEnd = false
+            this.recognitionResult = ''
+            await this.requestMicrophoneWS()
+            resolve()
+        })
+    }
+
+    async requestMicrophoneWS() {
+        // 如果当前正在录音 -> 手动停止录音
+        if (isRecording) {
+            // console.log("手动停止录音 (用户点击停止)");
+            // await stopRecordingAndSave("manual");
+            return;
+        }
+
+        // 如果不存在麦克风流，先请求权限
+        if (!mediaStream || !mediaStream.active) {
+            const granted = await requestMicrophoneAndInit();
+            if (!granted) return;
+        } else {
+            // 已经有麦克风，但是可能audioContext挂起，恢复一下
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }
+
+        // 确保没有任何旧录音分析残留，清理之前的音量检测定时器
+        if (silenceTimeout) {
+            clearTimeout(silenceTimeout);
+            silenceTimeout = null;
+        }
+        // 开始新的录音
+        await this.startRecordingWS();
+    }
+
+    async startRecordingWS() {
+        if (!mediaStream) {
+            console.log("错误: 麦克风流不存在，请先请求麦克风", true);
+            return false;
+        }
+        if (isRecording) {
+            console.log("已有正在进行的录音，请先停止");
+            return false;
+        }
+
+        const url = `wss://agent.jszcai.com/stream-audio/v1/audio/transcriptions`;
+        const ws = new WebSocket(url);
+
+        ws.addEventListener('open', () => {
+            console.log('Connected to server.');
+
+        });
+
+        ws.addEventListener('message', (message) => {
+            let msg = JSON.parse(message.data.toString())
+            console.log(msg);
+            if (msg.event_type == 'transcriptions.created') {
+                let format = {
+                    "id": crypto.randomUUID(),
+                    "event_type": "transcriptions.update",
+                    "data": {
+                        "input_audio": {
+                            "format": "pcm",
+                            "codec": "pcm",
+                            "sample_rate": 48000,
+                            "channel": 1,
+                            "bit_depth": 16
+                        }
+                    }
+                }
+                ws.send(JSON.stringify(format))
+            }
+            if (msg.event_type == 'transcriptions.message.update') {
+                this.recognitionResult = msg.data.content
+            }
+            if (msg.event_type === 'transcriptions.message.completed') {
+                ws.close()
+            }
+            // event_type: 'transcriptions.created'
+        });
+        let resolver; // 1. 在外部定义一个变量来保存 resolve 函数
+
+        const myPromise = new Promise((resolve) => {
+            resolver = resolve; // 2. 将 Promise 内部的 resolve 赋值给外部变量
+        });
+        // 重置录音数据块
+        audioChunks = [];
+        recordingStartTime = Date.now();
+
+        // 重新连接音频分析器 (音量检测)
+        if (audioContext && mediaStream) {
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            // 断开旧的 source 再建新连接
+            if (sourceNode) {
+                try { sourceNode.disconnect(); } catch (e) { }
+            }
+
+            sourceNode = audioContext.createMediaStreamSource(mediaStream);
+
+            // 创建 ScriptProcessorNode 用于捕获 PCM 数据
+            const bufferSize = 4096; // 缓冲区大小
+            scriptProcessor = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+            // 创建分析器节点用于音量检测
+            analyserNode = audioContext.createAnalyser();
+            analyserNode.fftSize = 256;
+
+            // 连接节点: source -> analyser -> scriptProcessor -> destination (不连接destination避免回声)
+            sourceNode.connect(analyserNode);
+            analyserNode.connect(scriptProcessor);
+            // 不连接到 destination，避免播放音频
+
+            // 重要：scriptProcessor 必须连接到 destination 才能触发 onaudioprocess
+            // 如果不想听到声音，可以创建一个静音的 GainNode
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0; // 静音
+            scriptProcessor.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // 存储 PCM 数据的数组
+            let pcmData = [];
+            let isFirstChunk = true;
+
+            // 处理音频数据
+            scriptProcessor.onaudioprocess = (event) => {
+                if (!isRecording) return;
+
+                const inputData = event.inputBuffer.getChannelData(0);
+                const sampleRate = event.inputBuffer.sampleRate;
+
+                // 将 Float32Array 转换为 Int16Array (PCM 16-bit)
+                const int16Data = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    // 将 -1.0 到 1.0 的浮点数转换为 -32768 到 32767 的整数
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                // 存储 PCM 数据
+                pcmData.push(int16Data);
+
+                // 每200ms发送一次数据块到 WebSocket
+                if (isFirstChunk || pcmData.length * bufferSize >= sampleRate * 0.2) {
+                    isFirstChunk = false;
+                    const totalLength = pcmData.reduce((acc, arr) => acc + arr.length, 0);
+                    const combinedData = new Int16Array(totalLength);
+                    let offset = 0;
+                    for (const arr of pcmData) {
+                        combinedData.set(arr, offset);
+                        offset += arr.length;
+                    }
+                    // 转换为 Base64 并发送 combinedData.toString('base64') //
+                    const base64Data = int16ArrayToBase64(combinedData);
+                    const data = {
+                        "id": crypto.randomUUID(),
+                        "event_type": "input_audio_buffer.append",
+                        "data": {
+                            "delta": base64Data,
+                        }
+                    };
+                    // console.log(data, sampleRate)
+                    console.log(`📦 发送音频数据块: ${(combinedData.byteLength / 1024).toFixed(1)}KB`);
+                    ws.send(JSON.stringify(data));
+
+                    // 清空缓冲区
+                    pcmData = [];
+                }
+            };
+
+            let stopRecordingWS = async (stopType = "manual") => {
+                console.log(`停止录音，类型: ${stopType}`);
+
+                if (scriptProcessor) {
+                    try {
+                        // 断开所有连接
+                        scriptProcessor.disconnect();
+                        if (gainNode) gainNode.disconnect();
+                        scriptProcessor.onaudioprocess = null;
+                    } catch (e) {
+                        console.error('断开scriptProcessor失败:', e);
+                    }
+                }
+
+                isRecording = false;
+                isStoppingManually = false;
+
+                // 清除静音超时
+                if (silenceTimeout) clearTimeout(silenceTimeout);
+                silenceTimeout = null;
+
+                // 清理音频节点
+                try {
+                    if (analyserNode) analyserNode.disconnect();
+                    if (sourceNode) sourceNode.disconnect();
+                } catch (e) {
+                    console.error('清理音频节点失败:', e);
+                }
+            };
+
+            isAnalyserSetup = true;
+
+            // 启动音量检测循环
+            let lastNotSilentTime = Date.now();
+            let hasDetectedSpeech = false;
+
+            const detectVolume = () => {
+                if (!isRecording || !analyserNode || !isAnalyserSetup) return;
+
+                try {
+                    const dataArrayLocal = new Uint8Array(analyserNode.frequencyBinCount);
+                    analyserNode.getByteTimeDomainData(dataArrayLocal);
+                    let sumSquares = 0;
+                    for (let i = 0; i < dataArrayLocal.length; i++) {
+                        let v = (dataArrayLocal[i] - 128) / 128;
+                        sumSquares += v * v;
+                    }
+                    let rms = Math.sqrt(sumSquares / dataArrayLocal.length);
+                    const currentVolume = rms;
+
+                    if (currentVolume > SILENCE_THRESHOLD) {
+                        lastNotSilentTime = Date.now();
+                        if (!hasDetectedSpeech) {
+                            hasDetectedSpeech = true;
+                            console.log(`🗣️ 检测到语音输入 (音量:${currentVolume.toFixed(4)})`);
+                        }
+                        if (silenceTimeout) {
+                            clearTimeout(silenceTimeout);
+                            silenceTimeout = null;
+                        }
+                    } else {
+                        if (hasDetectedSpeech && isRecording) {
+                            if (!silenceTimeout) {
+                                silenceTimeout = setTimeout(() => {
+                                    if (isRecording && hasDetectedSpeech) {
+                                        console.log(`🤫 检测到持续静音 ${SILENCE_DELAY_MS / 1000} 秒，自动停止录音`);
+                                        // 发送结束标志
+                                        let end_message = {
+                                            "id": crypto.randomUUID(),
+                                            "event_type": "input_audio_buffer.complete"
+                                        }
+                                        ws.send(JSON.stringify(end_message))
+                                        stopRecordingWS("auto");
+                                        this.recognitionEnd = true
+                                        resolver()
+                                    }
+                                    silenceTimeout = null;
+                                }, SILENCE_DELAY_MS);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // 忽略错误
+                }
+
+                if (isRecording) {
+                    setTimeout(detectVolume, 200);
+                }
+            };
+
+            setTimeout(detectVolume, 200);
+            isRecording = true;
+            console.log("🎙️ 录音中 · 正在聆听 ... (说完后自动停止)", true);
+            console.log("开始录音，启用智能静音检测 (1.8秒停顿自动结束)");
+
+        } else {
+            console.log("警告: 音频上下文未初始化，无法进行录音", true);
+        }
+        return myPromise
     }
     // curl -o text-to-audio.mp3 -X POST 'http://agent.jszcai.com/v1/text-to-audio' \
     // --header 'Authorization: Bearer {api_key}' \

@@ -316,7 +316,7 @@ class LepiSmartClassroom extends EventEmitter {
         this.sensorDevice = []
 
         // Zigbee Model ID
-        models = ['lumi.curtain', 'QBKG40LM', 'TS0001']
+        models = ['lumi.curtain', 'QBKG40LM', 'TS0001', 'lumi.ctrl_neutral1']
         devices = this.deviceList.filter(dev => dev.model_id && models.indexOf(dev.model_id.trim()) >= 0)
         console.log(devices)
         for (let i = 0; i < devices.length; i++) {
@@ -602,7 +602,7 @@ class LepiSmartClassroom extends EventEmitter {
                 })
                 // this.subscribeTopic({ TOPIC: `zigbee2mqtt/${dev.alias}` })
 
-            } else if (dev.model_id == 'lumi.motion.ac02') {
+            } else if (dev.model_id == 'lumi.motion.ac02' || dev.model_id == 'lumi.motion.acn001') {
                 this.sensorDevice.push({
                     name: dev.alias + '-有人',
                     topic: `zigbee2mqtt/${dev.alias}`,

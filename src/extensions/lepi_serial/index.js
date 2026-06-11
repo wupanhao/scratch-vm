@@ -21,6 +21,8 @@ const blockIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYA
 // const menuIconURI = blockIconURI;
 
 const portMap = {
+    "/dev/ttyACM2": "S1",
+    "/dev/ttyACM1": "S2",
     "/dev/ttyAMA4": "S3",
     "/dev/ttyAMA2": "S4",
     "/dev/ttyAMA0": "S5",
