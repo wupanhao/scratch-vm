@@ -28,6 +28,7 @@ class LepiFaceRecognize extends EventEmitter {
         this.detectedFace = null
         this.addedFaceLabel = false
         this.faceLabels = []
+        this.faceDirs = []
         this.faceDetections = []
         this.faceAge = []
         this.faceEmotion = []
@@ -38,6 +39,7 @@ class LepiFaceRecognize extends EventEmitter {
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             try {
                 this.getFaceLabels()
+                this.getFaceDirs()
             } catch (error) {
                 console.log(error)
             }
@@ -45,6 +47,7 @@ class LepiFaceRecognize extends EventEmitter {
         this.runtime.on('LEPI_CONNECTED', () => {
             console.log('LEPI_CONNECTED', 'getFaceLabels')
             this.getFaceLabels()
+            this.getFaceDirs()
         })
     }
 
@@ -295,6 +298,21 @@ class LepiFaceRecognize extends EventEmitter {
                     }),
                     blockType: BlockType.COMMAND,
                 },
+                {
+                    opcode: 'loadFaceLabels',
+                    text: formatMessage({
+                        id: 'lepi.loadFaceLabels',
+                        default: '加载人脸数据 [DIR]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        DIR: {
+                            type: ArgumentType.STRING,
+                            defaultValue: ".",
+                            menu: "faceDirs"
+                        }
+                    }
+                },
                 '---',
                 {
                     opcode: 'detectFaceMesh',
@@ -407,6 +425,7 @@ class LepiFaceRecognize extends EventEmitter {
             ],
             menus: {
                 faceLabels: 'formatFaceLabels',
+                faceDirs: 'formatFaceDirs',
                 faceParams: Menu.formatMenu([formatMessage({
                     id: 'lepi.x',
                     default: 'x坐标',
@@ -485,7 +504,18 @@ class LepiFaceRecognize extends EventEmitter {
 
 
     formatFaceLabels() {
+        this.getFaceLabels()
         return Menu.formatMenu2(this.faceLabels)
+    }
+
+    formatFaceDirs() {
+        let menu = [{ text: '默认', value: '.' }]
+        this.getFaceDirs()
+        if (this.faceDirs.length == 0) {
+            return menu
+        } else {
+            return menu.concat(Menu.formatMenu2(this.faceDirs))
+        }
     }
 
     getFaceLabels() {
@@ -495,6 +525,21 @@ class LepiFaceRecognize extends EventEmitter {
                 resolve(this.faceLabels.join(','))
             })
         })
+    }
+
+    getFaceDirs() {
+        return new Promise(resolve => {
+            this.runtime.ros.getFaceDirs().then(result => {
+                this.faceDirs = result.data
+                resolve(this.faceDirs.join(','))
+            })
+        })
+    }
+
+    async loadFaceLabels(args) {
+        await this.runtime.ros.loadFaceLabels(args.DIR)
+        await this.getFaceLabels()
+        return
     }
 
     addFaceLabel(args, util) {
@@ -548,7 +593,7 @@ class LepiFaceRecognize extends EventEmitter {
         return this.removeFaceLabel(args, util)
     }
 
-    openFaceDir(){
+    openFaceDir() {
         let port = 8888
         if (this.runtime.ros && this.runtime.ros.isConnected()) {
             let url = `http://${this.runtime.vm.ros.ip}:${port}/files/Lepi_Data/ros/face_recognizer/known_face/`

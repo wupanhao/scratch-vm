@@ -807,6 +807,38 @@ class ros_client {
     })
   }
 
+  getFaceDirs() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'face_recognizer_node/list_face_dirs',
+        serviceType: 'pi_driver/GetStrings'
+      });
+
+      var request = new ROSLIB.ServiceRequest();
+      client.callService(request, (result) => {
+        console.log(result)
+        resolve(result)
+      });
+    })
+  }
+
+  loadFaceLabels(dir) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'face_recognizer_node/load_face_labels',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({data: dir});
+      client.callService(request, (result) => {
+        console.log(result)
+        resolve(result)
+      });
+    })
+  }
+
   detectFaceLocations() {
     return new Promise((resolve) => {
       var client = new ROSLIB.Service({

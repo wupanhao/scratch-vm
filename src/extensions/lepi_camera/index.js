@@ -1102,6 +1102,7 @@ class LepiCamera extends EventEmitter {
     }
 
     formatStreamList() {
+        this.getStreamList()
         let topics = this.streamList.map(topic => topic_maps[topic])
         return Menu.formatMenu2(topics)
     }
