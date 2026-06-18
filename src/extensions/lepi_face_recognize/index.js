@@ -313,6 +313,14 @@ class LepiFaceRecognize extends EventEmitter {
                         }
                     }
                 },
+                {
+                    opcode: 'getFaceLabels',
+                    text: formatMessage({
+                        id: 'lepi.getFaceLabels',
+                        default: '已知人脸集合',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
                 '---',
                 {
                     opcode: 'detectFaceMesh',
@@ -522,7 +530,7 @@ class LepiFaceRecognize extends EventEmitter {
         return new Promise(resolve => {
             this.runtime.ros.getFaceLabels().then(result => {
                 this.faceLabels = result.data
-                resolve(this.faceLabels.join(','))
+                resolve(JSON.stringify(this.faceLabels))
             })
         })
     }

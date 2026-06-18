@@ -722,9 +722,11 @@ class LepiCamera extends EventEmitter {
             }
 
             if (this.runtime.ros && this.runtime.ros.isConnected()) {
-                let data = this.canvas2.toDataURL('image/jpeg');
-                this.runtime.ros.publishImage(data)
-                this.publishCounter++
+                // let data = this.canvas2.toDataURL('image/jpeg');
+                // this.runtime.ros.publishImage(data)
+                // this.publishCounter++
+                this.drawStamp(this.canvas2, xOffset, yOffset);
+                this.runtime.requestRedraw();
             } else {
                 // let data = this.canvas2.toDataURL('image/jpeg');
                 // var ImageData1 = "data:image/jpeg;base64," + data;
@@ -1092,12 +1094,14 @@ class LepiCamera extends EventEmitter {
         */
         return new Promise((resolve) => {
             // this.runtime.ros.getImageTopics().then(res => {
-            this.runtime.ros.getTopicsForType('sensor_msgs/CompressedImage').then(res => {
-                // console.log(res)
-                console.log(res.data)
-                this.streamList = res.data.filter(topic => topic_maps[topic])
-                resolve(this.streamList.map(topic => topic_maps[topic]).join(','))
-            })
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                this.runtime.ros.getTopicsForType('sensor_msgs/CompressedImage').then(res => {
+                    // console.log(res)
+                    console.log(res.data)
+                    this.streamList = res.data.filter(topic => topic_maps[topic])
+                    resolve(this.streamList.map(topic => topic_maps[topic]).join(','))
+                })
+            }
         })
     }
 
@@ -1177,7 +1181,7 @@ class LepiCamera extends EventEmitter {
             }
             if (onoff == 1) {
                 await this.cameraSetFlip({ FLIPCODE: 1 })
-            }else{
+            } else {
                 await this.cameraSetFlip({ FLIPCODE: 2 })
             }
             return

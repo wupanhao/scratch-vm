@@ -126,7 +126,7 @@ class LepiLearningMachineHand extends EventEmitter {
 
 
         try {
-            this.setSize({ W: 360, H: 360 })
+            // this.setSize({ W: 360, H: 360 })
             this.updateModelList()
             // setInterval(() => {
             //     this.updateModelList()
@@ -214,24 +214,24 @@ class LepiLearningMachineHand extends EventEmitter {
                         }
                     }
                 },
-                {
-                    opcode: 'setSize',
-                    blockType: BlockType.COMMAND,
-                    text: formatMessage({
-                        id: 'lepi.setImageSize',
-                        default: '设置图像尺寸 宽:[W] 高:[H]',
-                    }),
-                    arguments: {
-                        W: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 360,
-                        },
-                        H: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 360,
-                        },
-                    }
-                },
+                // {
+                //     opcode: 'setSize',
+                //     blockType: BlockType.COMMAND,
+                //     text: formatMessage({
+                //         id: 'lepi.setImageSize',
+                //         default: '设置图像尺寸 宽:[W] 高:[H]',
+                //     }),
+                //     arguments: {
+                //         W: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 360,
+                //         },
+                //         H: {
+                //             type: ArgumentType.NUMBER,
+                //             defaultValue: 360,
+                //         },
+                //     }
+                // },
                 {
                     opcode: 'predict',
                     text: formatMessage({
