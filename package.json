@@ -53,6 +53,7 @@
     "decode-html": "2.0.0",
     "diff-match-patch": "1.0.4",
     "echarts": "^5.5.0",
+    "event-source-polyfill": "^1.0.31",
     "fft-js": "^0.0.12",
     "format-message": "6.2.1",
     "htmlparser2": "3.10.0",
