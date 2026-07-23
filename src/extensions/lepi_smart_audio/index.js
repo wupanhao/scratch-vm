@@ -776,7 +776,7 @@ class LepiSmartAudio extends EventEmitter {
         this.recognitionResult = '';
         this.audio = document.createElement('audio')
         this.audio.display = 'none'
-        this.audio.autoplay = true
+        this.audio.autoplay = false
         this.tts_busy = false
         this.hotwordList = []
         this.model_dir = `/home/pi/Lepi_Data/ros/smart_audio_node/resources/models`
@@ -1265,7 +1265,7 @@ class LepiSmartAudio extends EventEmitter {
         }
 
         // if (navigator.userAgent.indexOf("Electron") >= 0) {
-        if (false) {
+        if (location.host == "appassets.androidplatform.net") {
             await startAudioRecognize(this.onRecognitionResult.bind(this))
             return Promise.resolve(this.recognitionResult)
         } else {
@@ -1653,7 +1653,7 @@ class LepiSmartAudio extends EventEmitter {
             return new Promise(resolve => {
                 let src = URL.createObjectURL(response.data)
                 this.audio.src = src
-                // this.audio.play()
+                this.audio.play()
                 this.audio.onended = () => {
                     URL.revokeObjectURL(src)
                     this.tts_busy = false

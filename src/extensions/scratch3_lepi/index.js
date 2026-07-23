@@ -506,6 +506,21 @@ class Scratch3LepiBlocks {
                 },
                 '---',
                 {
+                    opcode: 'fullScreenRunProject',
+                    text: formatMessage({
+                        id: 'lepi.fullScreenRunProject',
+                        default: '当前设备全屏运行程序 [FILE]',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        FILE: {
+                            type: ArgumentType.STRING,
+                            menu: 'lepiProjects'
+                        },
+                    }
+                },
+                '---',
+                {
                     opcode: 'batteryInfo',
                     text: formatMessage({
                         id: 'lepi.batteryInfo',
@@ -1432,6 +1447,21 @@ class Scratch3LepiBlocks {
             if (this.runtime.ros && this.runtime.ros.isConnected()) {
                 let ip = 'localhost'
                 this.runtime.ros.proxyGet(`http://${ip}:8000/bigscreen-run?project_url=http://${ip}:8000/explore/Scratch/${file}`)
+            }
+        }
+    }
+
+    fullScreenRunProject(args) {
+        let file = args.FILE
+        if (file && file.indexOf('.sb3') > 0) {
+            if (this.runtime.ros && this.runtime.ros.isConnected()) {
+                let url = `http://${this.runtime.vm.ros.ip}/build/embed.html?project_url=http://${this.runtime.vm.ros.ip}:8000/explore/Scratch/${file}`
+                let a = document.createElement('a')
+                a.href = url
+                // a.target = '_blank'
+                a.click()
+            } else {
+                return '未连接到主机'
             }
         }
     }
