@@ -34,6 +34,7 @@
     "statements": 70
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.0",
     "@teachablemachine/image": "^0.8.5",
     "@teachablemachine/pose": "^0.8.6",
     "@tensorflow-models/speech-commands": "^0.5.4",

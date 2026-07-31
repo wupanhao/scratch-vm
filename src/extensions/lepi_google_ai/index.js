@@ -10,6 +10,20 @@ const Menu = require('../../util/menu');
 // const MathUtil = require('../../util/math-util');
 const StageLayering = require('../../engine/stage-layering')
 
+// import { PaddleOCR } from "@paddleocr/paddleocr-js/dist";
+// const PaddleOCR = require("@paddleocr/paddleocr-js/dist");
+// console.log(PaddleOCR)
+
+const {
+    ObjectDetector,
+    FilesetResolver
+} = require('./vision_bundle.js');
+
+const classes = require('./classes')
+const names = Object.keys(classes);
+
+console.log(ObjectDetector, FilesetResolver)
+
 // const taskVision = require('@mediapipe/tasks-vision/vision_bundle.cjs')
 
 // import {FilesetResolver,HandLandmarker} from "@mediapipe/tasks-vision"
@@ -62,6 +76,88 @@ function removeLandmarks(results) {
         removeElements(
             results.poseLandmarks,
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17, 18, 19, 20, 21, 22]);
+    }
+}
+
+// ==================== 工具函数 ====================
+function getCategoryColor(categoryIndex) {
+    const hue = (categoryIndex * 37 + 180) % 360;
+    return `hsl(${hue}, 70%, 55%)`;
+}
+
+function drawDetections(ctx, detections, canvasWidth, canvasHeight) {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    if (!detections || detections.length === 0) return;
+
+    for (const detection of detections) {
+        const bbox = detection.boundingBox;
+        if (!bbox) continue;
+
+        const x = bbox.originX;
+        const y = bbox.originY;
+        const w = bbox.width;
+        const h = bbox.height;
+
+        const category = detection.categories[0];
+        const categoryName = classes[category.categoryName] || category.categoryName;
+        const categoryIndex = names.indexOf(category.categoryName);
+        const score = category.score;
+        const color = getCategoryColor(categoryIndex >= 0 ? categoryIndex : 0);
+
+        // 绘制边界框
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(2.5, Math.min(canvasWidth, canvasHeight) * 0.004);
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 8;
+        ctx.strokeRect(x, y, w, h);
+        ctx.shadowBlur = 0;
+
+        // 半透明填充
+        ctx.fillStyle = color.replace('55%)', '55%, 0.12)').replace('hsl', 'hsla');
+        ctx.fillRect(x, y, w, h);
+
+        // 标签
+        const labelText = `${categoryName} ${(score * 100).toFixed(0)}%`;
+        const fontSize = Math.max(13, Math.min(canvasWidth, canvasHeight) * 0.032);
+        ctx.font = `bold ${fontSize}px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif`;
+        const textMetrics = ctx.measureText(labelText);
+        const textWidth = textMetrics.width;
+        const textHeight = fontSize * 1.4;
+        const labelY = y + h - textHeight - 4;
+
+        const bgX = x;
+        const bgY = labelY > 0 ? labelY : y + 2;
+        const bgW = textWidth + 12;
+        const bgH = textHeight + 4;
+
+        ctx.fillStyle = color.replace('55%)', '55%, 0.85)').replace('hsl', 'hsla');
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+
+        const rx = 6;
+        const bx = bgY > 0 ? x : x;
+        const by = bgY > 0 ? labelY : y + 2;
+        ctx.beginPath();
+        ctx.moveTo(bx + rx, by);
+        ctx.lineTo(bx + bgW - rx, by);
+        ctx.quadraticCurveTo(bx + bgW, by, bx + bgW, by + rx);
+        ctx.lineTo(bx + bgW, by + bgH - rx);
+        ctx.quadraticCurveTo(bx + bgW, by + bgH, bx + bgW - rx, by + bgH);
+        ctx.lineTo(bx + rx, by + bgH);
+        ctx.quadraticCurveTo(bx, by + bgH, bx, by + bgH - rx);
+        ctx.lineTo(bx, by + rx);
+        ctx.quadraticCurveTo(bx, by, bx + rx, by);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labelText, bx + 6, by + bgH / 2);
     }
 }
 
@@ -187,6 +283,10 @@ class LepiGoogleAI extends EventEmitter {
             minTrackingConfidence: 0.5
         });
         this.holistic.onResults(this.onResultsHolistic.bind(this));
+
+        this.objectDetections = []
+        this.objectThreshold = 0.40
+        this.loadObjectModel()
 
     }
 
@@ -511,7 +611,7 @@ class LepiGoogleAI extends EventEmitter {
     getInfo() {
         return {
             id: 'lepiGoogleAI',
-            name: '谷歌AI',
+            name: '通用AI',
             // menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             // showStatusButton: true,
@@ -669,6 +769,40 @@ class LepiGoogleAI extends EventEmitter {
                     text: '检测全身',
                     blockType: BlockType.COMMAND,
                 },
+                '---',
+                {
+                    opcode: 'detectObject',
+                    text: '检测目标',
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'detectedObject',
+                    text: formatMessage({
+                        id: 'lepi.detectedObject',
+                        default: '检测到 [CLASS] ?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        CLASS: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'objects'
+                        }
+                    }
+                }, {
+                    opcode: 'objectData',
+                    text: formatMessage({
+                        id: 'lepi.objectData',
+                        default: '目标 [DATA]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        DATA: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'objectData',
+                            // defaultValue: 0
+                        }
+                    }
+                },
             ],
             menus: {
                 // objects: Menu.formatMenu3(Object.values(classes), Object.keys(classes)),
@@ -686,6 +820,24 @@ class LepiGoogleAI extends EventEmitter {
                 handLandmarks: Menu.formatMenu4(21),
                 poseLandmarks: Menu.formatMenu4(33),
                 hand: Menu.formatMenu(['右或左', '左', '右']),
+                objects: Menu.formatMenu3(Object.values(classes), Object.keys(classes)),
+                // apriltags: _formatMenu1(['停止', '机动车道', '前方学校', '单行道', '等待行人']),
+                objectData: Menu.formatMenu([formatMessage({
+                    id: 'lepi.center_x',
+                    default: '中心点x坐标',
+                }), formatMessage({
+                    id: 'lepi.center_y',
+                    default: '中心点y坐标',
+                }), formatMessage({
+                    id: 'lepi.width',
+                    default: '宽度',
+                }), formatMessage({
+                    id: 'lepi.height',
+                    default: '高度',
+                }), formatMessage({
+                    id: 'lepi.confidence',
+                    default: '置信度',
+                })]),
             },
 
         };
@@ -883,6 +1035,81 @@ class LepiGoogleAI extends EventEmitter {
         const h = parseInt(args.H)
         return this.runtime.ros.setUltraFaceResize(w, h)
     }
+
+    async loadObjectModel() {
+        // const vision = require('@mediapipe/tasks-vision');
+        // console.log(vision)
+        try {
+            const vision = await FilesetResolver.forVisionTasks(
+                'static/node_modules/@mediapipe/tasks-vision/wasm'
+            );
+            this.objectDetector = await ObjectDetector.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: 'static/models/efficientdet_lite0.tflite',
+                    delegate: 'GPU',
+                },
+                scoreThreshold: this.objectThreshold,
+                maxResults: 25,
+                runningMode: 'IMAGE', // 使用 IMAGE 模式以同时支持图片和视频
+            });
+        } catch (e) {
+            console.log(e)
+        }
+    }
+
+    detectObject() {
+        if (this.objectDetector) {
+            let img_src = document.querySelector('#lepi_camera')
+            // 使用 MediaPipe 的 detect 方法检测图片
+            const result = this.objectDetector.detect(img_src);
+            console.log(result)
+            if (this.drawResults) {
+                drawDetections(this.ctx, result.detections, this.canvas.width, this.canvas.height);
+                this.drawResult()
+            }
+            this.objectDetections = (result.detections || []).filter(d => {
+                return d.categories && d.categories.length > 0 &&
+                    d.categories[0].score >= this.objectThreshold;
+            }).map(object => {
+                let left_x = object.boundingBox.originX
+                let left_y = object.boundingBox.originY
+                return {
+                    class_: object.categories[0].categoryName,
+                    score: parseInt(object.categories[0].score * 100),
+                    box: [left_y, left_x, left_y + object.boundingBox.height, left_x + object.boundingBox.width]
+                }
+            });
+            console.log(this.objectDetections)
+        }
+    }
+
+    detectedObject(args, util) {
+        var class_ = args.CLASS
+        var id = this.objectDetections.findIndex(e => e.class_ == class_)
+        if (id >= 0) {
+            this.object = this.objectDetections[id]
+            var img_x = parseInt((this.object.box[1] + this.object.box[3]) / 2)
+            var img_y = parseInt((this.object.box[0] + this.object.box[2]) / 2)
+            var height = this.object.box[2] - this.object.box[0]
+            var width = this.object.box[3] - this.object.box[1]
+            // this.object.data = [img_x - 240, -img_y + 180, width, height, this.object.score]
+            this.object.data = [img_x, img_y, width, height, this.object.score]
+            return true
+        } else {
+            this.object = null
+            return false
+        }
+    }
+
+    objectData(args, util) {
+        var data_id = parseInt(args.DATA)
+        if (this.object) {
+            return this.object.data[data_id]
+        } else {
+            return 0
+        }
+    }
+
 }
 
 module.exports = LepiGoogleAI;
