@@ -1001,7 +1001,7 @@ class LepiCamera extends EventEmitter {
 
             // this.img.src = url.replace('ws', 'http').replace('9090', '8080') + "/snapshot?topic=" + topic;
             image.crossOrigin = 'anonymous';
-            console.log(image)
+            // console.log(image)
             image.setAttribute('src', args.ImageData);
 
         })
@@ -1243,7 +1243,7 @@ class LepiCamera extends EventEmitter {
                             return
                         } else {
                             // ctx.drawImage(video);//绘制视频
-                            console.log('publish image', this.publishCounter)
+                            // console.log('publish image', this.publishCounter)
                             this.drawVideo()
                         }
 

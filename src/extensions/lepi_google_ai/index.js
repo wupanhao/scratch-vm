@@ -24,6 +24,9 @@ const names = Object.keys(classes);
 
 console.log(ObjectDetector, FilesetResolver)
 
+const jsQR = require("jsqr");
+const QRCode = require('qrcode')
+
 // const taskVision = require('@mediapipe/tasks-vision/vision_bundle.cjs')
 
 // import {FilesetResolver,HandLandmarker} from "@mediapipe/tasks-vision"
@@ -214,6 +217,8 @@ class LepiGoogleAI extends EventEmitter {
         this.results = {}
         this.faceDetections = []
         this.faceMeshDetections = []
+        this.defaultQRCodeValue = ['', 0, 0, 0, 0]
+
         this._setupPreview()
         this.init()
     }
@@ -803,6 +808,57 @@ class LepiGoogleAI extends EventEmitter {
                         }
                     }
                 },
+                '---',
+                {
+                    opcode: 'detectQRCode',
+                    text: '检测二维码',
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'detectedBarcode',
+                    text: formatMessage({
+                        id: 'lepi.detectedBarcode',
+                        default: '检测到内容包含 [TAG] 的二维码?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        TAG: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'tag'
+                        }
+                    }
+                }, {
+                    opcode: 'barcodeData',
+                    text: formatMessage({
+                        id: 'lepi.barcodeData',
+                        default: '二维码 [DATA]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        DATA: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'barCodeData',
+                            // defaultValue: 0
+                        }
+                    }
+                }, {
+                    opcode: 'generateBarcode',
+                    text: formatMessage({
+                        id: 'lepi.generateBarcode',
+                        default: '二维码[TAG] 转base64, 大小[SIZE]',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        TAG: {
+                            type: ArgumentType.STRING,
+                            defaultValue: 'tag'
+                        },
+                        SIZE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 360
+                        },
+                    }
+                }
             ],
             menus: {
                 // objects: Menu.formatMenu3(Object.values(classes), Object.keys(classes)),
@@ -837,6 +893,22 @@ class LepiGoogleAI extends EventEmitter {
                 }), formatMessage({
                     id: 'lepi.confidence',
                     default: '置信度',
+                })]),
+                barCodeData: Menu.formatMenu([formatMessage({
+                    id: 'lepi.text_content',
+                    default: '文本内容',
+                }), formatMessage({
+                    id: 'lepi.center_x',
+                    default: '中心点x坐标',
+                }), formatMessage({
+                    id: 'lepi.center_y',
+                    default: '中心点y坐标',
+                }), formatMessage({
+                    id: 'lepi.width',
+                    default: '宽度',
+                }), formatMessage({
+                    id: 'lepi.height',
+                    default: '高度',
                 })]),
             },
 
@@ -1110,6 +1182,90 @@ class LepiGoogleAI extends EventEmitter {
         }
     }
 
+    drawLine(begin, end, color) {
+        let canvas = this.ctx
+        canvas.beginPath();
+        canvas.moveTo(begin.x, begin.y);
+        canvas.lineTo(end.x, end.y);
+        canvas.lineWidth = 4;
+        canvas.strokeStyle = color;
+        canvas.stroke();
+    }
+
+    detectQRCode(args, util) {
+        let img_src = document.querySelector('#lepi_camera')
+        let canvas = img_src.getContext("2d");
+        let imageData = canvas.getImageData(0, 0, img_src.width, img_src.height);
+        let code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+            let topLeftCorner = code.location.topLeftCorner
+            let bottomRightCorner = code.location.bottomRightCorner
+            let width = parseInt(Math.abs(bottomRightCorner.x - topLeftCorner.x))
+            let height = parseInt(Math.abs(bottomRightCorner.y - topLeftCorner.y))
+            let x = parseInt((bottomRightCorner.x + topLeftCorner.x) / 2)
+            let y = parseInt((bottomRightCorner.y + topLeftCorner.y) / 2)
+            this.barcodeDetections = [{ class_: code.data, box: [x - parseInt(width / 2), y - parseInt(height / 2), width, height] }]
+            this.barcode = this.getBarcodeById(0)
+        } else {
+            this.barcodeDetections = []
+        }
+        console.log(code, this.barcodeDetections)
+
+        if (this.drawResults) {
+            if (code) {
+                this.ctx.save();
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+                this.drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+                this.drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+                this.drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+                this.ctx.restore();
+                this.drawResult()
+            }
+        }
+    }
+    getBarcodeById(id) {
+        const target = this.barcodeDetections[id]
+        if (target) {
+            var data = {}
+            data.x = parseInt(target.box[0] + target.box[2] / 2)
+            data.y = parseInt(target.box[1] + target.box[3] / 2)
+            data.w = target.box[2]
+            data.h = target.box[3]
+            return [target.class_, data.x, data.y, data.w, data.h]
+        } else {
+            return null
+        }
+
+    }
+    detectedBarcode(args, util) {
+        var tag = args.TAG
+        var id = this.barcodeDetections.findIndex(e => e.class_.indexOf(tag) >= 0)
+        if (id >= 0) {
+            this.barcode = this.getBarcodeById(id)
+            return true
+        } else {
+            this.barcode = null
+            return false
+        }
+    }
+
+    barcodeData(args, util) {
+        var data_id = parseInt(args.DATA)
+        if (this.barcode) {
+            return this.barcode[data_id]
+        } else {
+            return this.defaultQRCodeValue[data_id]
+        }
+    }
+
+    async generateBarcode(args, util) {
+        let tag = args.TAG
+        let width = parseInt(args.SIZE)
+        console.log(tag)
+        let base64 = await QRCode.toDataURL(tag.toString(), { width: width })
+        return base64
+    }
 }
 
 module.exports = LepiGoogleAI;
