@@ -10,9 +10,13 @@ const Menu = require('../../util/menu');
 // const MathUtil = require('../../util/math-util');
 const StageLayering = require('../../engine/stage-layering')
 
-// import { PaddleOCR } from "@paddleocr/paddleocr-js/dist";
-// const PaddleOCR = require("@paddleocr/paddleocr-js/dist");
+// const {PaddleOCR} =  require('./paddleocr-paddleocr-js.js')
 // console.log(PaddleOCR)
+
+const languages = {
+    "en": "English",
+    "zh": "简体中文",
+}
 
 const {
     ObjectDetector,
@@ -291,8 +295,10 @@ class LepiGoogleAI extends EventEmitter {
 
         this.objectDetections = []
         this.objectThreshold = 0.40
-        this.loadObjectModel()
 
+        this.texts = []
+        this.text = ''
+        this.textThreshold = 0.60
     }
 
     onResultsFace(results) {
@@ -858,7 +864,38 @@ class LepiGoogleAI extends EventEmitter {
                             defaultValue: 360
                         },
                     }
-                }
+                },
+                '---',
+                {
+                    opcode: 'detectText',
+                    text: formatMessage({
+                        id: 'lepi.detectText',
+                        default: '识别 [LANG] 文本',
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        LANG: {
+                            type: ArgumentType.STRING,
+                            menu: 'lang',
+                            defaultValue: 'zh',
+                        }
+                    }
+                }, {
+                    opcode: 'textDetectResult',
+                    text: formatMessage({
+                        id: 'lepi.textDetectResult',
+                        default: '文本识别结果',
+                    }),
+                    blockType: BlockType.REPORTER,
+                }, {
+                    opcode: 'textDetectResultDetail',
+                    text: formatMessage({
+                        id: 'lepi.textDetectResultDetail',
+                        default: '文本识别结果详情',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
+
             ],
             menus: {
                 // objects: Menu.formatMenu3(Object.values(classes), Object.keys(classes)),
@@ -910,6 +947,8 @@ class LepiGoogleAI extends EventEmitter {
                     id: 'lepi.height',
                     default: '高度',
                 })]),
+                lang: Menu.formatMenu3(Object.values(languages), Object.keys(languages)),
+
             },
 
         };
@@ -1129,7 +1168,7 @@ class LepiGoogleAI extends EventEmitter {
         }
     }
 
-    detectObject() {
+    async detectObject() {
         if (this.objectDetector) {
             let img_src = document.querySelector('#lepi_camera')
             // 使用 MediaPipe 的 detect 方法检测图片
@@ -1152,6 +1191,9 @@ class LepiGoogleAI extends EventEmitter {
                 }
             });
             console.log(this.objectDetections)
+        } else {
+            await this.loadObjectModel()
+            await this.detectObject()
         }
     }
 
@@ -1185,9 +1227,14 @@ class LepiGoogleAI extends EventEmitter {
     drawLine(begin, end, color) {
         let canvas = this.ctx
         canvas.beginPath();
-        canvas.moveTo(begin.x, begin.y);
-        canvas.lineTo(end.x, end.y);
-        canvas.lineWidth = 4;
+        if (begin.length >= 2 && end.length >= 2) {
+            canvas.moveTo(begin[0], begin[1]);
+            canvas.lineTo(end[0], end[1]);
+        } else {
+            canvas.moveTo(begin.x, begin.y);
+            canvas.lineTo(end.x, end.y);
+        }
+        canvas.lineWidth = 2;
         canvas.strokeStyle = color;
         canvas.stroke();
     }
@@ -1265,6 +1312,55 @@ class LepiGoogleAI extends EventEmitter {
         console.log(tag)
         let base64 = await QRCode.toDataURL(tag.toString(), { width: width })
         return base64
+    }
+
+    async detectText(args, util) {
+        if (this.ocr) {
+            let img_src = document.querySelector('#lepi_camera')
+            const [result] = await this.ocr.predict(img_src)
+            console.log(result)
+            if (result.items && result.items.length > 0) {
+                this.texts = result.items.filter(item => item.score > this.textThreshold)
+                this.text = this.texts.map(item => item.text).join(' ')
+                if (this.drawResults) {
+                    this.ctx.save();
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    for (let i = 0; i < this.texts.length; i++) {
+                        const element = this.texts[i];
+                        this.drawLine(element.poly[0], element.poly[1], "#FF3B58");
+                        this.drawLine(element.poly[1], element.poly[2], "#FF3B58");
+                        this.drawLine(element.poly[2], element.poly[3], "#FF3B58");
+                        this.drawLine(element.poly[3], element.poly[0], "#FF3B58");
+                    }
+                    this.ctx.restore();
+                    this.drawResult()
+                }
+            } else {
+                this.texts = []
+                this.text = ''
+            }
+        } else {
+            this.ocr = await PaddleOCR.create({
+                ocrVersion: "PP-OCRv6",
+                textDetectionModelName: "PP-OCRv6_tiny_det",
+                textDetectionModelAsset: {
+                    url: "static/models/paddleocr/PP-OCRv6_tiny_det_onnx_infer.tar"
+                },
+                textRecognitionModelName: "PP-OCRv6_tiny_rec",
+                textRecognitionModelAsset: {
+                    url: "static/models/paddleocr/PP-OCRv6_tiny_rec_onnx_infer.tar"
+                }
+            });
+            await this.detectText()
+        }
+
+    }
+
+    textDetectResult(args, util) {
+        return this.text
+    }
+    textDetectResultDetail(args, util) {
+        return JSON.stringify(this.texts)
     }
 }
 
