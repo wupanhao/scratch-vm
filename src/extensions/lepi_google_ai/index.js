@@ -10,9 +10,6 @@ const Menu = require('../../util/menu');
 // const MathUtil = require('../../util/math-util');
 const StageLayering = require('../../engine/stage-layering')
 
-// const {PaddleOCR} =  require('./paddleocr-paddleocr-js.js')
-// console.log(PaddleOCR)
-
 const languages = {
     "en": "English",
     "zh": "简体中文",
@@ -1169,6 +1166,9 @@ class LepiGoogleAI extends EventEmitter {
     }
 
     async detectObject() {
+        if (this.objectModelLoading) {
+            return
+        }
         if (this.objectDetector) {
             let img_src = document.querySelector('#lepi_camera')
             // 使用 MediaPipe 的 detect 方法检测图片
@@ -1192,7 +1192,9 @@ class LepiGoogleAI extends EventEmitter {
             });
             console.log(this.objectDetections)
         } else {
+            this.objectModelLoading = true
             await this.loadObjectModel()
+            this.objectModelLoading = false
             await this.detectObject()
         }
     }
@@ -1315,6 +1317,9 @@ class LepiGoogleAI extends EventEmitter {
     }
 
     async detectText(args, util) {
+        if (this.ocrLoading) {
+            return
+        }
         if (this.ocr) {
             let img_src = document.querySelector('#lepi_camera')
             const [result] = await this.ocr.predict(img_src)
@@ -1340,6 +1345,9 @@ class LepiGoogleAI extends EventEmitter {
                 this.text = ''
             }
         } else {
+            this.ocrLoading = true
+            const { PaddleOCR } = await eval(`import('../static/models/paddleocr/paddleocr-paddleocr-js.js')`)
+            // console.log(PaddleOCR)
             this.ocr = await PaddleOCR.create({
                 ocrVersion: "PP-OCRv6",
                 textDetectionModelName: "PP-OCRv6_tiny_det",
@@ -1351,6 +1359,7 @@ class LepiGoogleAI extends EventEmitter {
                     url: "static/models/paddleocr/PP-OCRv6_tiny_rec_onnx_infer.tar"
                 }
             });
+            this.ocrLoading = false
             await this.detectText()
         }
 
