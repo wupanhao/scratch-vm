@@ -87,6 +87,12 @@ const defaultBuiltinExtensions = {
     lepiLive2D: () => require('../extensions/lepi_live2d'),
     lepiXiaozhiRobot: () => require('../extensions/lepi_xiaozhi_robot'),
     lepiMCP: () => require('../extensions/lepi_mcp'),
+    localFaceDetection: () => require('../extensions/local_face_detect'),
+    localHandDetection: () => require('../extensions/local_hand_detect'),
+    localPoseDetection: () => require('../extensions/local_pose_detect'),
+    localQRCodeDetection: () => require('../extensions/local_qrcode_detect'),
+    localObjectDetection: () => require('../extensions/local_object_detect'),
+    localTextDetection: () => require('../extensions/local_text_detect'),
 };
 
 /**

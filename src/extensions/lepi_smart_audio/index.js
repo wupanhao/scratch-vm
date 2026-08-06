@@ -825,6 +825,22 @@ class LepiSmartAudio extends EventEmitter {
             // showStatusButton: true,
             blocks: [
                 {
+                    opcode: 'SpeechRecognitionEnd',
+                    text: formatMessage({
+                        id: 'lepi.SpeechRecognitionEnd',
+                        default: '识别到语音?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                },
+                {
+                    opcode: 'SpeechRecognitionResult',
+                    text: formatMessage({
+                        id: 'lepi.SpeechRecognitionResult',
+                        default: '语音识别结果',
+                    }),
+                    blockType: BlockType.REPORTER,
+                },
+                {
                     opcode: 'SpeechRecognitionOnline',
                     text: formatMessage({
                         id: 'lepi.SpeechRecognitionOnline',
@@ -881,6 +897,14 @@ class LepiSmartAudio extends EventEmitter {
                             defaultValue: '7426725529589596187'
                         }
                     }
+                },
+                {
+                    opcode: 'SpeakEnd',
+                    text: formatMessage({
+                        id: 'lepi.SpeakEnd',
+                        default: '朗读结束?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
                 },
                 {
                     opcode: 'StopTTSOnline',
@@ -962,14 +986,6 @@ class LepiSmartAudio extends EventEmitter {
                     }),
                     blockType: BlockType.COMMAND,
                 },
-                {
-                    opcode: 'SpeakEnd',
-                    text: formatMessage({
-                        id: 'lepi.SpeakEnd',
-                        default: '朗读结束?',
-                    }),
-                    blockType: BlockType.BOOLEAN,
-                },
                 '---',
                 {
                     opcode: 'SpeechRecognitionOffline',
@@ -978,22 +994,6 @@ class LepiSmartAudio extends EventEmitter {
                         default: '离线语音识别',
                     }),
                     blockType: BlockType.COMMAND,
-                },
-                {
-                    opcode: 'SpeechRecognitionEnd',
-                    text: formatMessage({
-                        id: 'lepi.SpeechRecognitionEnd',
-                        default: '识别到语音?',
-                    }),
-                    blockType: BlockType.BOOLEAN,
-                },
-                {
-                    opcode: 'SpeechRecognitionResult',
-                    text: formatMessage({
-                        id: 'lepi.SpeechRecognitionResult',
-                        default: '语音识别结果',
-                    }),
-                    blockType: BlockType.REPORTER,
                 },
                 {
                     opcode: 'Text2Pinyin',

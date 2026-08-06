@@ -289,6 +289,125 @@ class LepiCamera extends EventEmitter {
             blockIconURI: blockIconURI,
             // showStatusButton: true,
             blocks: [{
+                opcode: 'toggleCamera',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.toggleCamera',
+                    default: '[ACTION] 电脑摄像头 [CAMERA], 镜像翻转 [ONOFF]',
+                }),
+                arguments: {
+                    ACTION: {
+                        type: ArgumentType.STRING,
+                        defaultValue: 1,
+                        menu: 'cameraRectify'
+                    },
+                    CAMERA: {
+                        type: ArgumentType.STRING,
+                        menu: 'cameraList'
+                    },
+                    ONOFF: {
+                        type: ArgumentType.STRING,
+                        defaultValue: 0,
+                        menu: 'cameraRectify'
+                    },
+                }
+            }, {
+                opcode: 'image2base64',
+                blockType: BlockType.REPORTER,
+                text: formatMessage({
+                    id: 'lepi.image2base64',
+                    default: '图像转base64',
+                })
+            },
+            {
+                opcode: 'showPicFromSource',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.showPicFromSource',
+                    default: '显示图像 [ImageData]',
+                }),
+                arguments: {
+                    ImageData: {
+                        type: ArgumentType.STRING,
+                        defaultValue: '链接或base64'
+                    }
+                }
+            },
+            {
+                opcode: 'freezeSnapshot',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.freezeSnapshot',
+                    default: '定格当前画面',
+                }),
+            },
+            {
+                opcode: 'downloadPic',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.downloadPic',
+                    default: '下载图像到电脑[FILE_NAME].png',
+                }),
+                arguments: {
+                    FILE_NAME: {
+                        type: ArgumentType.STRING,
+                        defaultValue: '-'
+                    }
+                }
+            }, {
+                opcode: 'drawRect',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.drawRect',
+                    default: '画矩形 (x1:[X1],y1[Y1]) (x2:[X2],y2:[Y2])',
+                }),
+                arguments: {
+                    X1: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 128
+                    },
+                    Y1: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 68
+                    },
+                    X2: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 352
+                    },
+                    Y2: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 292
+                    },
+                }
+            },
+            {
+                opcode: 'clearRect',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.clearRect',
+                    default: '清除矩形',
+                }),
+            },
+            {
+                opcode: 'setVideoTransparency',
+                text: formatMessage({
+                    id: 'lepi.setVideoTransparency',
+                    default: '设置透明度 [TRANSPARENCY]',
+                }),
+                arguments: {
+                    TRANSPARENCY: {
+                        type: ArgumentType.NUMBER,
+                        defaultValue: 50
+                    }
+                }
+            }, {
+                opcode: 'openLocalImage',
+                blockType: BlockType.COMMAND,
+                text: formatMessage({
+                    id: 'lepi.openLocalImage',
+                    default: '上传本地图片',
+                }),
+            }, '---', {
                 opcode: 'openCamera',
                 blockType: BlockType.COMMAND,
                 isTerminal: false,
@@ -380,52 +499,6 @@ class LepiCamera extends EventEmitter {
                 }),
                 blockType: BlockType.COMMAND,
             },
-
-            {
-                opcode: 'showPicFromSource',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.showPicFromSource',
-                    default: '显示图像 [ImageData]',
-                }),
-                arguments: {
-                    ImageData: {
-                        type: ArgumentType.STRING,
-                        defaultValue: '链接或base64'
-                    }
-                }
-            },
-
-            {
-                opcode: 'image2base64',
-                blockType: BlockType.REPORTER,
-                text: formatMessage({
-                    id: 'lepi.image2base64',
-                    default: '图像转base64',
-                })
-            },
-            {
-                opcode: 'freezeSnapshot',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.freezeSnapshot',
-                    default: '定格当前画面',
-                }),
-            },
-            {
-                opcode: 'downloadPic',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.downloadPic',
-                    default: '下载图像到电脑[FILE_NAME].png',
-                }),
-                arguments: {
-                    FILE_NAME: {
-                        type: ArgumentType.STRING,
-                        defaultValue: '-'
-                    }
-                }
-            },
             {
                 opcode: 'savePic',
                 blockType: BlockType.COMMAND,
@@ -454,44 +527,6 @@ class LepiCamera extends EventEmitter {
                     }
                 }
             },
-
-                '---',
-            {
-                opcode: 'drawRect',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.drawRect',
-                    default: '画矩形 (x1:[X1],y1[Y1]) (x2:[X2],y2:[Y2])',
-                }),
-                arguments: {
-                    X1: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 128
-                    },
-                    Y1: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 68
-                    },
-                    X2: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 352
-                    },
-                    Y2: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 292
-                    },
-                }
-            },
-            {
-                opcode: 'clearRect',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.clearRect',
-                    default: '清除矩形',
-                }),
-            },
-
-
             {
                 opcode: 'setUpdateFrequence',
                 text: formatMessage({
@@ -505,22 +540,6 @@ class LepiCamera extends EventEmitter {
                     }
                 }
             },
-            {
-                opcode: 'setVideoTransparency',
-                text: formatMessage({
-                    id: 'lepi.setVideoTransparency',
-                    default: '设置透明度 [TRANSPARENCY]',
-                }),
-                arguments: {
-                    TRANSPARENCY: {
-                        type: ArgumentType.NUMBER,
-                        defaultValue: 50
-                    }
-                }
-            },
-
-
-
             {
                 opcode: 'cameraSetRectify',
                 blockType: BlockType.COMMAND,
@@ -590,38 +609,6 @@ class LepiCamera extends EventEmitter {
                         type: ArgumentType.STRING,
                         defaultValue: 'rtsp://'
                     }
-                }
-            },
-            {
-                opcode: 'openLocalImage',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.openLocalImage',
-                    default: '上传本地图片',
-                }),
-            },
-            {
-                opcode: 'toggleCamera',
-                blockType: BlockType.COMMAND,
-                text: formatMessage({
-                    id: 'lepi.toggleCamera',
-                    default: '[ACTION] 电脑摄像头 [CAMERA], 镜像翻转 [ONOFF]',
-                }),
-                arguments: {
-                    ACTION: {
-                        type: ArgumentType.STRING,
-                        defaultValue: 1,
-                        menu: 'cameraRectify'
-                    },
-                    CAMERA: {
-                        type: ArgumentType.STRING,
-                        menu: 'cameraList'
-                    },
-                    ONOFF: {
-                        type: ArgumentType.STRING,
-                        defaultValue: 0,
-                        menu: 'cameraRectify'
-                    },
                 }
             },
 
