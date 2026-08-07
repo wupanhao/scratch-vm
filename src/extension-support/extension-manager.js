@@ -93,6 +93,7 @@ const defaultBuiltinExtensions = {
     localQRCodeDetection: () => require('../extensions/local_qrcode_detect'),
     localObjectDetection: () => require('../extensions/local_object_detect'),
     localTextDetection: () => require('../extensions/local_text_detect'),
+    localApriltagDetection: () => require('../extensions/local_apriltag_detect'),
 };
 
 /**

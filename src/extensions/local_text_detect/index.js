@@ -29,7 +29,7 @@ class LocalTextDetection extends EventEmitter {
         this.canvas.width = 480;
         this.canvas.height = 360;
         this.ctx = this.canvas.getContext('2d');
-        
+
         this.drawResults = true;
         this.texts = [];
         this.text = '';
@@ -170,7 +170,8 @@ class LocalTextDetection extends EventEmitter {
             }
         } else {
             this.ocrLoading = true;
-            const { PaddleOCR } = await eval(`import('../static/models/paddleocr/paddleocr-paddleocr-js.js')`);
+            let url = new URL('./static/models/paddleocr/paddleocr-paddleocr-js.js', location.href).href
+            const { PaddleOCR } = await eval(`import("${url}")`);
             this.ocr = await PaddleOCR.create({
                 ocrVersion: "PP-OCRv6",
                 textDetectionModelName: "PP-OCRv6_tiny_det",

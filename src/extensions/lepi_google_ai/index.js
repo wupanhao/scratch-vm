@@ -165,6 +165,50 @@ function drawDetections(ctx, detections, canvasWidth, canvasHeight) {
     }
 }
 
+function rotationMatrixToEulerAngles(matrix) {
+    // 矩阵为3x3数组，按行存储
+    const m = matrix;
+
+    // 提取旋转矩阵元素
+    const m00 = m[0][0], m01 = m[0][1], m02 = m[0][2];
+    const m10 = m[1][0], m11 = m[1][1], m12 = m[1][2];
+    const m20 = m[2][0], m21 = m[2][1], m22 = m[2][2];
+
+    // 计算欧拉角（XYZ旋转顺序）
+    let x, y, z;
+
+    // 检查是否为奇异情况（万向锁）
+    const epsilon = 1e-6;
+    if (Math.abs(m20 - 1) < epsilon) {
+        // 绕Y轴旋转90度
+        x = 0;
+        y = Math.PI / 2;
+        z = Math.atan2(m01, m11);
+    } else if (Math.abs(m20 + 1) < epsilon) {
+        // 绕Y轴旋转-90度
+        x = 0;
+        y = -Math.PI / 2;
+        z = Math.atan2(-m01, -m11);
+    } else {
+        // 一般情况
+        x = Math.atan2(m21, m22);
+        y = Math.atan2(-m20, Math.sqrt(m21 * m21 + m22 * m22));
+        z = Math.atan2(m10, m00);
+    }
+
+    // 转换为角度（弧度制，可选择转换为度）
+    // return {
+    //     x: x,
+    //     y: y,
+    //     z: z,
+    //     // 可选：转换为度
+    //     xDeg: x * 180 / Math.PI,
+    //     yDeg: y * 180 / Math.PI,
+    //     zDeg: z * 180 / Math.PI
+    // };
+    return [-x * 180 / Math.PI, -y * 180 / Math.PI, -z * 180 / Math.PI]
+}
+
 class LepiGoogleAI extends EventEmitter {
     constructor(runtime) {
         super();
@@ -219,6 +263,8 @@ class LepiGoogleAI extends EventEmitter {
         this.faceDetections = []
         this.faceMeshDetections = []
         this.defaultQRCodeValue = ['', 0, 0, 0, 0]
+
+        this.apriltagDetections = []
 
         this._setupPreview()
         this.init()
@@ -891,7 +937,63 @@ class LepiGoogleAI extends EventEmitter {
                         default: '文本识别结果详情',
                     }),
                     blockType: BlockType.REPORTER,
-                },
+                }, '---', {
+                    opcode: 'detectAprilTag',
+                    text: formatMessage({
+                        id: 'lepi.detectAprilTag',
+                        default: '检测标志物',
+                    }),
+                    blockType: BlockType.COMMAND,
+                }, {
+                    opcode: 'detectAprilTagIDs',
+                    text: formatMessage({
+                        id: 'lepi.detectAprilTagIDs',
+                        default: '检测到的标志物ID',
+                    }),
+                    blockType: BlockType.REPORTER,
+                }, {
+                    opcode: 'detectedAprilTag',
+                    text: formatMessage({
+                        id: 'lepi.detectedAprilTag',
+                        default: '检测到id为 [TAG] 的标志物?',
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        TAG: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                            // menu: 'apriltags'
+                        }
+                    }
+                }, {
+                    opcode: 'aprilTagTranslation',
+                    text: formatMessage({
+                        id: 'lepi.aprilTagTranslation',
+                        default: '标志物 [AXIS] 偏移距离',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        AXIS: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'axes',
+                            // defaultValue: 0
+                        }
+                    }
+                }, {
+                    opcode: 'aprilTagRotation',
+                    text: formatMessage({
+                        id: 'lepi.aprilTagRotation',
+                        default: '标志物 [AXIS] 偏移角度',
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        AXIS: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'axes',
+                            // defaultValue: 0
+                        }
+                    }
+                }
 
             ],
             menus: {
@@ -945,7 +1047,16 @@ class LepiGoogleAI extends EventEmitter {
                     default: '高度',
                 })]),
                 lang: Menu.formatMenu3(Object.values(languages), Object.keys(languages)),
-
+                axes: Menu.formatMenu([formatMessage({
+                    id: 'lepi.x_axis',
+                    default: 'x轴',
+                }), formatMessage({
+                    id: 'lepi.y_axis',
+                    default: 'y轴',
+                }), formatMessage({
+                    id: 'lepi.z_axis',
+                    default: 'z轴',
+                })]),
             },
 
         };
@@ -1370,6 +1481,100 @@ class LepiGoogleAI extends EventEmitter {
     }
     textDetectResultDetail(args, util) {
         return JSON.stringify(this.texts)
+    }
+
+    async detectAprilTag() {
+        if (this.apriltagLoading) {
+            return
+        }
+        if (this.process_frame) {
+            let img_src = document.querySelector('#lepi_camera')
+            let ctx_src = img_src.getContext('2d')
+            // this.ctx.drawImage(img_src, 0, 0, this.canvas.width, this.canvas.height);
+            let imageData = ctx_src.getImageData(0, 0, img_src.width, img_src.height)
+            // console.log(imageData)
+            let detections = await this.process_frame(imageData)
+            console.log(detections)
+
+            if (this.drawResults) {
+                this.ctx.save();
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                // draw previous detection
+                let ctx = this.ctx
+                detections.forEach(det => {
+                    // draw tag borders
+                    ctx.beginPath();
+                    ctx.lineWidth = "2";
+                    ctx.strokeStyle = "blue";
+                    ctx.moveTo(det.corners[0].x, det.corners[0].y);
+                    ctx.lineTo(det.corners[1].x, det.corners[1].y);
+                    ctx.lineTo(det.corners[2].x, det.corners[2].y);
+                    ctx.lineTo(det.corners[3].x, det.corners[3].y);
+                    ctx.lineTo(det.corners[0].x, det.corners[0].y);
+                    ctx.font = "bold 20px Arial";
+                    var txt = "" + det.id;
+                    ctx.fillStyle = "blue";
+                    ctx.textAlign = "center";
+                    ctx.fillText(txt, det.center.x, det.center.y + 5);
+                    ctx.stroke();
+                });
+                this.ctx.restore();
+                this.drawResult()
+            }
+            this.apriltagDetections = detections.map(tag => {
+                let det = {
+                    id: tag.id,
+                    pose_t: tag.pose.t.map(v => v * 100 / 2.5),
+                    pose_r: rotationMatrixToEulerAngles(tag.pose.R)
+                }
+                // det.pose_t[1] = -det.pose_t[1]
+                return det
+            })
+            if (this.apriltagDetections.length > 0) {
+                this.apriltag = this.apriltagDetections[0]
+            } else {
+                this.apriltag = null;
+            }
+        } else {
+            this.apriltagLoading = true
+            let apriltag_process_url = new URL('./static/models/apriltag/apriltag_process.js', location.href).href
+            const { init, process_frame } = await eval(`import("${apriltag_process_url}")`);
+            await init()
+            this.process_frame = process_frame
+            this.apriltagLoading = false
+            await this.detectAprilTag()
+        }
+    }
+    detectAprilTagIDs() {
+        return JSON.stringify(this.apriltagDetections.map(item => item.id))
+    }
+
+    detectedAprilTag(args, util) {
+        var tag_id = parseInt(args.TAG)
+        var id = this.apriltagDetections.findIndex(e => e.id == tag_id)
+        if (id >= 0) {
+            this.apriltag = this.apriltagDetections[id]
+            return true
+        } else {
+            this.apriltag = null
+            return false
+        }
+    }
+    aprilTagTranslation(args, util) {
+        var axis_id = parseInt(args.AXIS)
+        if (this.apriltag) {
+            return this.apriltag.pose_t[axis_id]
+        } else {
+            return 0
+        }
+    }
+    aprilTagRotation(args, util) {
+        var axis_id = parseInt(args.AXIS)
+        if (this.apriltag) {
+            return this.apriltag.pose_r[axis_id]
+        } else {
+            return 0
+        }
     }
 }
 
