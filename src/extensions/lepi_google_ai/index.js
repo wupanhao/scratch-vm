@@ -1457,7 +1457,8 @@ class LepiGoogleAI extends EventEmitter {
             }
         } else {
             this.ocrLoading = true
-            const { PaddleOCR } = await eval(`import('../static/models/paddleocr/paddleocr-paddleocr-js.js')`)
+            let url = new URL('./static/models/paddleocr/paddleocr-paddleocr-js.js', location.href).href
+            const { PaddleOCR } = await eval(`import("${url}")`);
             // console.log(PaddleOCR)
             this.ocr = await PaddleOCR.create({
                 ocrVersion: "PP-OCRv6",

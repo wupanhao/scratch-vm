@@ -27,7 +27,7 @@ class LocalQRCodeDetection extends EventEmitter {
         this.canvas.width = 480;
         this.canvas.height = 360;
         this.ctx = this.canvas.getContext('2d');
-        
+
         this.drawResults = true;
         this.barcodeDetections = [];
         this.barcode = null;
@@ -174,7 +174,7 @@ class LocalQRCodeDetection extends EventEmitter {
         let canvas = img_src.getContext("2d");
         let imageData = canvas.getImageData(0, 0, img_src.width, img_src.height);
         let code = jsQR(imageData.data, imageData.width, imageData.height);
-        
+
         if (code) {
             let topLeftCorner = code.location.topLeftCorner;
             let bottomRightCorner = code.location.bottomRightCorner;
@@ -182,23 +182,25 @@ class LocalQRCodeDetection extends EventEmitter {
             let height = parseInt(Math.abs(bottomRightCorner.y - topLeftCorner.y));
             let x = parseInt((bottomRightCorner.x + topLeftCorner.x) / 2);
             let y = parseInt((bottomRightCorner.y + topLeftCorner.y) / 2);
-            this.barcodeDetections = [{ 
-                class_: code.data, 
-                box: [x - parseInt(width / 2), y - parseInt(height / 2), width, height] 
+            this.barcodeDetections = [{
+                class_: code.data,
+                box: [x - parseInt(width / 2), y - parseInt(height / 2), width, height]
             }];
             this.barcode = this.getBarcodeById(0);
         } else {
             this.barcodeDetections = [];
         }
 
-        if (this.drawResults && code) {
-            this.ctx.save();
+        if (this.drawResults) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-            this.drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-            this.drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-            this.drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
-            this.ctx.restore();
+            if (code) {
+                this.ctx.save();
+                this.drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+                this.drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+                this.drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+                this.drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+                this.ctx.restore();
+            }
             this.drawResult();
         }
     }
