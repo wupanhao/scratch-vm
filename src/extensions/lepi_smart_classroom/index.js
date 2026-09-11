@@ -300,6 +300,70 @@ class LepiSmartClassroom extends EventEmitter {
         })
 
     }
+
+    addTripleSwitch(dev) {
+        this.commandDevice.push({
+            name: dev.alias + '-左-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_left: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-左-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_left: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias + '-左',
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state_left",
+            state: '',
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-中-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_center: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-中-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_center: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias + '-中',
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state_center",
+            state: '',
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-右-打开',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_right: "ON"
+            }
+        })
+        this.commandDevice.push({
+            name: dev.alias + '-右-关闭',
+            topic: `zigbee2mqtt/${dev.alias}/set`,
+            payload: {
+                state_right: "OFF"
+            }
+        })
+        this.sensorDevice.push({
+            name: dev.alias + '-右',
+            topic: `zigbee2mqtt/${dev.alias}`,
+            key: "state_right",
+            state: '',
+        })
+
+    }
     async updateTestDevice(testDevice) {
         // let res = await axios.get(`https://risebnu.com/prod-api/iot/open/authorizedEquipmentList?userId=${args.USERNAME}&courseArrangementId=${args.COURSE}`)
         this.deviceList = testDevice.filter(dev => dev.definition).map(dev => {
@@ -331,6 +395,15 @@ class LepiSmartClassroom extends EventEmitter {
         for (let i = 0; i < devices.length; i++) {
             const dev = devices[i];
             this.addDoubleSwitch(dev)
+        }
+
+        // Zigbee Model ID
+        models = ['lumi.switch.l3acn3']
+        devices = this.deviceList.filter(dev => dev.model_id && models.indexOf(dev.model_id.trim()) >= 0)
+        console.log(devices)
+        for (let i = 0; i < devices.length; i++) {
+            const dev = devices[i];
+            this.addTripleSwitch(dev)
         }
 
         models = ["TS0003_switch_module_2"]

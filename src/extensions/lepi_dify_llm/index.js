@@ -156,7 +156,7 @@ class LepiDifyLLM extends EventEmitter {
         this.headers = {
             'Content-Type': 'application/json'
         }
-        this.url = "https://agent.jsaiot.com/v1"
+        this.url = "https://agent.jszcai.com/v1"
         this.key = "app-iuIBkCYdP1dJPlIvzVeGTMEx"
         // this.key = ''
         this.user_id = "user-123"
@@ -201,7 +201,7 @@ class LepiDifyLLM extends EventEmitter {
                     arguments: {
                         URL: {
                             type: ArgumentType.STRING,
-                            defaultValue: "https://agent.jsaiot.com/v1",
+                            defaultValue: "https://agent.jszcai.com/v1",
                         },
                         KEY: {
                             type: ArgumentType.STRING,
@@ -345,12 +345,12 @@ class LepiDifyLLM extends EventEmitter {
                         buffer = buffer.slice(json.end)
                         json = extractFirstJSON(buffer)
                         let msg = JSON.parse(str)
-                        if (msg.event == 'message') {
+                        if (msg.event == 'message' || msg.event == 'agent_message') {
                             this.response += msg.answer
                         }
                         if (msg.event == 'message_end') {
                             this.conversation_id = msg.conversation_id
-                            this.responseFiles = msg.files
+                            this.responseFiles = msg.files ? msg.files : []
                         }
                     } catch (error) {
                         console.log(error)

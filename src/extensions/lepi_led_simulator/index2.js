@@ -667,7 +667,7 @@ class LepiLedSimulator extends EventEmitter {
                 screen: this.screenName,
                 startRow: startRow,
                 startCol: startCol,
-                text: text
+                text: String(text)
             };
             this.client.publish(this.config.commandTopic, JSON.stringify(command));
         }
