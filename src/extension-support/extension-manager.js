@@ -87,6 +87,7 @@ const defaultBuiltinExtensions = {
     lepiLive2D: () => require('../extensions/lepi_live2d'),
     lepiXiaozhiRobot: () => require('../extensions/lepi_xiaozhi_robot'),
     lepiMCP: () => require('../extensions/lepi_mcp'),
+    LocalBLE: () => require('../extensions/local_ble'),
     localFaceDetection: () => require('../extensions/local_face_detect'),
     localHandDetection: () => require('../extensions/local_hand_detect'),
     localPoseDetection: () => require('../extensions/local_pose_detect'),

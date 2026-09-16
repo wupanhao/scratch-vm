@@ -65,6 +65,10 @@ class LepiScienceSensor extends EventEmitter {
         this.white_list = [12346]
         this.runtime.on('LEPI_CONNECTED', () => {
         })
+        this.devices = []
+        this.device = null; // 当前连接的 BluetoothDevice
+        this.server = null; // 当前连接的 GATT Server
+        this.characteristics = {}; // 缓存已获取的特征
         // this.runtime.vm.on('PROJECT_RUN_STOP', () => {
         //     // console.log('PROJECT_RUN_STOP')
         //     this.keepReading = false
@@ -103,9 +107,10 @@ class LepiScienceSensor extends EventEmitter {
                 // },
                 {
                     opcode: 'connectSensors',
-                    text: '连接科学传感器',
+                    text: '有线连接科学传感器',
                     blockType: BlockType.COMMAND,
-                }, {
+                },
+                {
                     opcode: 'sensorValueUpdated',
                     text: '[SENSOR] 数据有更新?',
                     blockType: BlockType.BOOLEAN,
@@ -203,6 +208,17 @@ class LepiScienceSensor extends EventEmitter {
                         },
                     }
                 },
+                '---',
+                {
+                    opcode: 'connectSensorsBT',
+                    text: '无线连接科学传感器',
+                    blockType: BlockType.COMMAND,
+                },
+                {
+                    opcode: 'readBTSensorData',
+                    text: '无线读取传感器数据',
+                    blockType: BlockType.REPORTER,
+                },
 
             ],
 
@@ -232,8 +248,20 @@ class LepiScienceSensor extends EventEmitter {
     async readDataLoop(port, index) {
         const controller = new AbortController();
         const signal = controller.signal;
-        await port.open({ baudRate: 115200 }); // set baud rate
         console.log(port)
+        if (port.connected) {
+            try {
+                await port.close()
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        try {
+            await port.open({ baudRate: 115200 }); // set baud rate
+        } catch (error) {
+            console.log(error)
+            return
+        }
         const textDecoder = new TextDecoderStream();
         const lineBreaker = new TransformStream(new LineBreakTransformer2())
         let textDecoderClosed = port.readable.pipeTo(textDecoder.writable, { signal })
@@ -266,7 +294,8 @@ class LepiScienceSensor extends EventEmitter {
                                     value[keys[i]] = data[i]
                                 }
                             } else if (prefix.startsWith('INFRA')) {
-                                value = { 'env': data[0], 'measure': data[1] }
+                                console.log(data)
+                                value = { 'env': data[0], 'measure': data[1] || 0 }
                             } else if (['FORCE', 'TEMPE', 'VOLTA', 'ECURR', 'MVOLT', 'MCURR', 'SOUND'].indexOf(prefix) >= 0) {
                                 value[prefix] = data
                             } else {
@@ -333,6 +362,7 @@ class LepiScienceSensor extends EventEmitter {
 
     async connectSensors(args, util) {
         this.keepReading = false
+        await this.view_device_id()
         await new Promise((resolve, reject) => setTimeout(resolve, 2000));
         this.keepReading = true
         let ports = await navigator.serial.getPorts()
@@ -497,7 +527,198 @@ class LepiScienceSensor extends EventEmitter {
             this.white_list = ids
         }
     }
+    async connectSensorsBT() {
+        if (!navigator.bluetooth) {
+            console.error('Web Bluetooth API 不可用');
+            return;
+        }
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                // acceptAllDevices: true,
+                filters: [{ services: ['2854f2cd-d4a8-4b6a-9604-c520836acb5f'] }],
+                optionalServices: ['2854f2cd-d4a8-4b6a-9604-c520836acb5f'] // 可以在这里预填一些常见服务
+            });
+            // 避免重复添加
+            const exists = this.devices.some(d => (d.id || d.address) === (device.id || device.address));
+            if (!exists) {
+                console.log(device)
+                this.devices.push(device);
+            }
+            await this.connectToDevice({ DEVICE: device.name })
+            console.log('已添加设备:', device);
+        } catch (error) {
+            console.error('扫描设备失败:', error);
+        }
+    }
 
+    /**
+     * 连接到设备。
+     * args.DEVICE 可以是设备 id/address，也可以是设备名称。
+     */
+    async connectToDevice(args) {
+        if (!navigator.bluetooth) {
+            console.error('Web Bluetooth API 不可用');
+            return;
+        }
+        let device = this.devices.find(d => (d.id || d.address) === args.DEVICE || d.name === args.DEVICE);
+        if (!device) {
+            console.error('未找到设备:', args.DEVICE);
+            return;
+        }
+        if (this.isDeviceConnected()) {
+            try {
+                this.disconnectDevice()
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        try {
+            this.device = device;
+            this.server = await device.gatt.connect();
+            // 监听断开
+            device.addEventListener('gattserverdisconnected', () => {
+                console.log('设备已断开');
+                this.server = null;
+                this.characteristics = {};
+                this.notificationCharacteristics = {};
+            });
+            console.log('已连接到设备:', device.name || device.id, this.server);
+            await this.discoverServices()
+        } catch (error) {
+            console.error('连接设备失败:', error);
+        }
+    }
+
+    /**
+     * 发现设备服务特征。
+     * 注意：Web Bluetooth 需要事先在 requestDevice 的 optionalServices 中声明服务 UUID，
+     * 或者通过 getPrimaryServices 传入具体服务 UUID。
+     * 这里为了尽量通用，尝试获取所有已授权的主服务。
+     */
+    async discoverServices() {
+        if (!this.server) {
+            console.error('未连接设备');
+            return;
+        }
+        try {
+            const services = await this.server.getPrimaryServices();
+            this.services = {
+                characteristic_uuids: [],
+                properties: []
+            };
+            this.characteristics = {};
+            for (const service of services) {
+                const characteristics = await service.getCharacteristics();
+                for (const characteristic of characteristics) {
+                    const uuid = characteristic.uuid;
+                    const props = [];
+                    if (characteristic.properties.read) props.push('read');
+                    if (characteristic.properties.write) props.push('write');
+                    if (characteristic.properties.writeWithoutResponse) props.push('writeWithoutResponse');
+                    if (characteristic.properties.notify) props.push('notify');
+                    if (characteristic.properties.indicate) props.push('indicate');
+                    this.services.characteristic_uuids.push(uuid);
+                    this.services.properties.push(props);
+                    this.characteristics[uuid] = characteristic;
+                }
+            }
+            console.log('发现服务特征:', this.services);
+        } catch (error) {
+            console.error('发现服务失败:', error);
+        }
+    }
+
+    isDeviceConnected(args, util) {
+        return !!(this.device && this.device.gatt && this.device.gatt.connected);
+    }
+
+    disconnectDevice() {
+        if (this.device && this.device.gatt && this.device.gatt.connected) {
+            this.device.gatt.disconnect();
+            this.server = null;
+            this.characteristics = {};
+            this.notificationCharacteristics = {};
+        }
+    }
+
+    /**
+     * 根据 UUID 获取缓存的 characteristic。
+     */
+    async _getCharacteristic(uuid) {
+        if (this.characteristics[uuid]) {
+            return this.characteristics[uuid];
+        }
+        // 如果未缓存，尝试从 server 中查找
+        if (this.server) {
+            const services = await this.server.getPrimaryServices();
+            for (const service of services) {
+                const characteristics = await service.getCharacteristics();
+                for (const characteristic of characteristics) {
+                    if (characteristic.uuid === uuid) {
+                        this.characteristics[uuid] = characteristic;
+                        return characteristic;
+                    }
+                }
+            }
+        }
+        throw new Error(`未找到特征: ${uuid}`);
+    }
+
+    async readCharacteristicBytes(args) {
+        try {
+            const characteristic = await this._getCharacteristic(args.UUID);
+            const value = await characteristic.readValue();
+            // return JSON.stringify(Array.from(new Uint8Array(value.buffer)));
+            return value.buffer
+        } catch (error) {
+            console.error('读取特征失败:', error);
+            return '[]';
+        }
+    }
+
+    async readBTSensorData() {
+        if (this.isDeviceConnected()) {
+            let buffer = await this.readCharacteristicBytes({ UUID: 'b2d2f13e-4e07-11ee-8295-9799a44c37b0' })
+            let type = this.device.name.split('N').at(1)
+            // console.log(buffer)
+            // 力、热、电压、电流、微电压、微电流
+            if (['00', '01', '02', '03', '06', '07'].indexOf(type) >= 0) {
+                const data = new Float32Array(buffer);
+                return data[2]
+            } else if (type == '04') { //声音
+                const data = new Int16Array(buffer);
+                // console.log(data)
+                if (!data || data.length === 0) return 0;
+                let sum = 0;
+                for (let i = 0; i < data.length; i++) {
+                    sum += Math.abs(data[i]);
+                }
+                return sum / data.length;
+            } else if (type == '05') { //光谱
+                const data = new Int16Array(buffer);
+                let value = {}
+                let keys = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'CLE', 'NIR']
+                for (let i = 0; i < keys.length; i++) {
+                    value[keys[i]] = data[i]
+                }
+                return JSON.stringify(value)
+            } else if (type == '08') { //红外测温
+                const data = new Int16Array(buffer);
+                if (data[1] != 0) {
+                    return JSON.stringify({ 'env': (data[0] - 27315) / 100.0, 'measure': (data[1] - 27315) / 100.0 })
+                } else {
+                    return JSON.stringify({ 'env': (data[0] - 27315) / 100.0, 'measure': 0 })
+                }
+            } else if (type == '10') { //IMU
+                const data = new Int16Array(buffer);
+                return JSON.stringify({ 'Ax': data[0], 'Ay': data[1], 'Az': data[2], 'Gx': data[3], 'Gy': data[4], 'Gz': data[5] })
+            }
+            return data
+        } else {
+            return 0
+        }
+
+    }
 }
 
 
