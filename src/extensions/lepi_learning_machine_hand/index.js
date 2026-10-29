@@ -174,7 +174,7 @@ class LepiLearningMachineHand extends EventEmitter {
                     opcode: 'loadModelFromFile',
                     text: formatMessage({
                         id: 'lepi.loadHandModelFromFile',
-                        default: '从文件导入手势模型',
+                        default: '从文件导入手势分类模型',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -182,7 +182,7 @@ class LepiLearningMachineHand extends EventEmitter {
                     opcode: 'updateModelList',
                     text: formatMessage({
                         id: 'lepi.updateHandModelList',
-                        default: '更新手势模型列表',
+                        default: '更新手势分类模型列表',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -190,7 +190,7 @@ class LepiLearningMachineHand extends EventEmitter {
                     opcode: 'loadModelFromList',
                     text: formatMessage({
                         id: 'lepi.loadHandModelFromList',
-                        default: '加载手势模型 [MODEL]',
+                        default: '加载手势分类模型 [MODEL]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -243,7 +243,7 @@ class LepiLearningMachineHand extends EventEmitter {
                     opcode: 'detectedClass',
                     text: formatMessage({
                         id: 'lepi.detectedHandClass',
-                        default: '识别到手势 [CLASS] ?',
+                        default: '识别到手势分类 [CLASS] ?',
                     }),
                     blockType: BlockType.BOOLEAN,
                     arguments: {

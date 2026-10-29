@@ -137,8 +137,8 @@ class LepiLearningMachineFace extends EventEmitter {
                 {
                     opcode: 'loadModelFromFile',
                     text: formatMessage({
-                        id: 'lepi.loadHandModelFromFile',
-                        default: '从文件导入人脸模型',
+                        id: 'lepi.loadFaceModelFromFile',
+                        default: '从文件导入人脸识别模型',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -146,15 +146,15 @@ class LepiLearningMachineFace extends EventEmitter {
                     opcode: 'updateModelList',
                     text: formatMessage({
                         id: 'lepi.updateFaceModelList',
-                        default: '更新人脸模型列表',
+                        default: '更新人脸识别模型列表',
                     }),
                     blockType: BlockType.COMMAND,
                 },
                 {
                     opcode: 'loadModelFromList',
                     text: formatMessage({
-                        id: 'lepi.loadHandModelFromList',
-                        default: '加载人脸模型 [MODEL]',
+                        id: 'lepi.loadFaceModelFromList',
+                        default: '加载人脸识别模型 [MODEL]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -250,8 +250,8 @@ class LepiLearningMachineFace extends EventEmitter {
                 //     blockType: BlockType.REPORTER,
                 // },
                 {
-                    opcode: 'setDrawResults',
-                    text: '检测结果绘制 [ACTION] ',
+                    opcode: 'setDrawRecognizeResults',
+                    text: '识别结果绘制 [ACTION] ',
                     blockType: BlockType.COMMAND,
                     arguments: {
                         ACTION: {
