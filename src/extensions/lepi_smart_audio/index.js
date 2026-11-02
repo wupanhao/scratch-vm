@@ -944,7 +944,7 @@ class LepiSmartAudio extends EventEmitter {
                     opcode: 'LocalSpeechRecognition',
                     text: formatMessage({
                         id: 'lepi.LocalSpeechRecognition',
-                        default: '电脑离线语音识别',
+                        default: '电脑语音识别',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -952,7 +952,7 @@ class LepiSmartAudio extends EventEmitter {
                     opcode: 'SpeakOffline',
                     text: formatMessage({
                         id: 'lepi.SpeakOffline',
-                        default: '电脑离线语音朗读[TEXT], 发音人[SPEAKER], 音量[VOLUME] 速度[RATE] 音调[PITCH]',
+                        default: '电脑语音朗读[TEXT], 发音人[SPEAKER], 音量[VOLUME] 语速[RATE] 音调[PITCH]',
                     }),
                     blockType: BlockType.COMMAND,
                     arguments: {
@@ -982,7 +982,7 @@ class LepiSmartAudio extends EventEmitter {
                     opcode: 'StopSpeak',
                     text: formatMessage({
                         id: 'lepi.StopSpeak',
-                        default: '停止离线语音朗读',
+                        default: '停止电脑语音朗读',
                     }),
                     blockType: BlockType.COMMAND,
                 },
@@ -1237,8 +1237,10 @@ class LepiSmartAudio extends EventEmitter {
     formatSpeakerList() {
         try {
             window.speechSynthesis.getVoices().map(item => {
-                if (item.localService) {
-                    voicesMap[item.name] = item
+                if (item.localService || item.lang == 'zh-CN') {
+                    if(item.voiceURI.indexOf('Google')<0){
+                        voicesMap[item.name] = item
+                    }
                 }
                 // console.log(item, item.localService, voicesMap)
             })
@@ -1247,7 +1249,17 @@ class LepiSmartAudio extends EventEmitter {
         }
 
         // console.log(window.speechSynthesis.getVoices(), voicesMap)
-        return Menu.formatMenu2(Object.keys(voicesMap))
+        // return Menu.formatMenu2(Object.keys(voicesMap))
+        let keys = Object.keys(voicesMap).map((v, i) => {
+            let type = '(在线)'
+            if (voicesMap[v].localService) {
+                type = '(离线)'
+            }
+            // return '语音' + (i + 1) + '-' + voicesMap[v].lang.replace('zh-', '') + type
+            return '语音' + (i + 1) + type
+        })
+        // let keys = Object.keys(voicesMap).map((v,i) => v+'-'+voicesMap[v].lang)
+        return Menu.formatMenu3(keys, Object.keys(voicesMap))
     }
 
     onRecognitionResult(text) {
