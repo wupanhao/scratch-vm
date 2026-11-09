@@ -271,7 +271,7 @@ class Scratch3RpiOneGPIO {
                     arguments: {
                         IP_ADDR: {
                             type: ArgumentType.NUMBER,
-                            defaultValue: '192.168.50.106',
+                            defaultValue: this.runtime.vm.LEPI_IP,
                             //menu: "digital_pins"
                         },
 

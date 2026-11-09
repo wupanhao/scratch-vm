@@ -119,6 +119,9 @@ const node_name_maps = {
     }), "/ubiquityrobot/xiaozhi_robot_node": () => formatMessage({
         id: 'lepi.xiaozhi_robot',
         default: '小智机器人',
+    }), "/ubiquityrobot/gpio_node": () => formatMessage({
+        id: 'lepi.gpio_node',
+        default: 'GPIO',
     }),
 
 
