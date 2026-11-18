@@ -12,6 +12,7 @@ class ros_client {
     // }
     this.ip = ros_base_ip
     this.btnListener = null
+    this.buttonEventListener = null
     this.sensorStatusListener = null
     this.btnHandler = btnHandler
     this.sensorStatusHandler = null
@@ -348,7 +349,7 @@ class ros_client {
     })
   }
 
-  get3AxesData(id, offset = False) {
+  get3AxesData(id, offset = false) {
     let service
     if (offset) {
       service = ROS_NAMESPACE + 'pi_driver_node/sensor_get_3axes'
@@ -487,6 +488,377 @@ class ros_client {
       });
     })
   }
+
+  getAccStrength() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/sensor_get_strength',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      client.callService(request, (result) => {
+        resolve(result.value)
+      }, (err) => {
+        console.log(err)
+        resolve(0)
+      });
+    })
+  }
+
+  getButtonPressed(buttonId) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/button_get_pressed',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        id: buttonId
+      });
+
+      client.callService(request, (result) => {
+        resolve(result.value)
+      }, (err) => {
+        console.log(err)
+        resolve(0)
+      });
+    })
+  }
+
+  getButtonState() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/button_get_state',
+        serviceType: 'pi_driver/GetButtonState'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve({ a: 0, b: 0 })
+      });
+    })
+  }
+
+  subButtonEvent(callback) {
+    if (this.buttonEventListener) {
+      this.buttonEventListener.unsubscribe();
+      this.buttonEventListener = null;
+    }
+    if (!this.ros) {
+      return;
+    }
+    var listener = new ROSLIB.Topic({
+      ros: this.ros,
+      name: '/ubiquityrobot/pi_driver_node/button_event',
+      messageType: 'pi_driver/ButtonEvent'
+    });
+    listener.subscribe(callback);
+    this.buttonEventListener = listener;
+  }
+
+  getSoundLevel() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/sound_get_level',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      client.callService(request, (result) => {
+        resolve(result.value)
+      }, (err) => {
+        console.log(err)
+        resolve(0)
+      });
+    })
+  }
+
+  playBuzzerTone(frequency, beats = 0) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/buzzer_play_tone',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        frequency: frequency,
+        beats: beats
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  playBuzzerMusic(music, mode = 'Once') {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/buzzer_play_music',
+        serviceType: 'pi_driver/SetString'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        music: music,
+        mode: mode
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  stopBuzzer() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/buzzer_stop',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  setBuzzerTempo(ticks, bpm) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/buzzer_set_tempo',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        ticks: ticks,
+        bpm: bpm
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  redirectBuzzer(pin) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/buzzer_redirect',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  setPinDigital(pin, value) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/pin_set_digital',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin,
+        value: value
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  getPinDigital(pin) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/pin_read_digital',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin
+      });
+
+      client.callService(request, (result) => {
+        resolve(result.value)
+      }, (err) => {
+        console.log(err)
+        resolve(0)
+      });
+    })
+  }
+
+  getPinAnalog(pin) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/pin_read_analog',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin
+      });
+
+      client.callService(request, (result) => {
+        resolve(result.value)
+      }, (err) => {
+        console.log(err)
+        resolve(0)
+      });
+    })
+  }
+
+  setPinPwm(pin, value) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/pin_write_analog',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin,
+        value: value
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve()
+      });
+    })
+  }
+
+  setServoAngle(pin, angle) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/servo_set_angle',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin,
+        angle: angle
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve({success: false})
+      });
+    })
+  }
+
+  releaseServo(pin) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/servo_release',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve({success: false})
+      });
+    })
+  }
+
+  getDht11Value(pin) {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/dht11_get_value',
+        serviceType: 'pi_driver/SetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({
+        pin: pin
+      });
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve({temperature: 0, humidity: 0, success: false})
+      });
+    })
+  }
+
+  getColorSensorValue() {
+    return new Promise((resolve) => {
+      var client = new ROSLIB.Service({
+        ros: this.ros,
+        name: ROS_NAMESPACE + 'pi_driver_node/color_sensor_get_value',
+        serviceType: 'pi_driver/GetInt32'
+      });
+
+      var request = new ROSLIB.ServiceRequest({});
+
+      client.callService(request, (result) => {
+        resolve(result)
+      }, (err) => {
+        console.log(err)
+        resolve({r: 0, g: 0, b: 0, c: 0, color: '', success: false})
+      });
+    })
+  }
+
 
   getPowerState() {
     return new Promise((resolve) => {
